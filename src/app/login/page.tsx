@@ -1,9 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Grid3x3, Mail, Lock, Eye, EyeOff, ArrowRight, Users } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
+import { TwoFactorAuth } from "@/components/TwoFactorAuth";
+import { LoginRateLimiter, SessionTimeoutManager } from "@/lib/security";
 import { UserRole } from "@/types/domain";
 
 export default function LoginPage() {
@@ -15,20 +18,71 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState("");
+  
+  // 2FA states
+  const [show2FA, setShow2FA] = useState(false);
+  const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    // Check if rate limited on mount
+    if (LoginRateLimiter.isLimited()) {
+      const remainingMs = LoginRateLimiter.getRemainingTime();
+      const remainingMin = Math.ceil(remainingMs / 1000 / 60);
+      setRateLimitMessage(`Demasiados intentos. Intenta de nuevo en ${remainingMin} minuto(s).`);
+      setError("Has excedido el límite de intentos. Por favor espera antes de intentar de nuevo.");
+    }
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setRateLimitMessage("");
+
+    // Check rate limiting
+    if (LoginRateLimiter.isLimited()) {
+      const remainingMs = LoginRateLimiter.getRemainingTime();
+      const remainingMin = Math.ceil(remainingMs / 1000 / 60);
+      setError(`Demasiados intentos. Intenta de nuevo en ${remainingMin} minuto(s).`);
+      return;
+    }
+
     setLoading(true);
+    
     // Auto-detect role: admin email uses admin path, all others use tech path
     const role: UserRole = email === "maria.gonzalez@company.com" ? "admin" : "tech";
     const success = await login(email, password, role);
     setLoading(false);
+    
     if (!success) {
-      setError("Credenciales invalidas. Verifica correo y contraseña.");
+      LoginRateLimiter.recordAttempt();
+      const attempts = LoginRateLimiter.getAttempts();
+      const remainingAttempts = LoginRateLimiter.MAX_ATTEMPTS - (attempts?.count || 0);
+      
+      setError(`Credenciales inválidas. Te quedan ${remainingAttempts} intento(s).`);
       return;
     }
+
+    // Mostrar 2FA
+    LoginRateLimiter.reset(); // Clear rate limit on successful login
+    SessionTimeoutManager.startSession(); // Start session timeout
+    setPendingRole(role);
+    setShow2FA(true);
+  };
+
+  const handleVerify2FA = async (code: string) => {
+    // Código demo para pruebas
+    if (code !== "123123") {
+      throw new Error("Código incorrecto. Usa 123123 para pruebas.");
+    }
+    
+    // Si el código es correcto, redirect a la app
     router.replace("/");
+  };
+
+  const handleCancel2FA = () => {
+    setShow2FA(false);
+    setPendingRole(null);
   };
 
   return (
@@ -69,89 +123,101 @@ export default function LoginPage() {
             <span className="login-wordmark">Coordinatech</span>
           </div>
 
-          <h1 className="login-title">Bienvenido de nuevo</h1>
-          <p className="login-subtitle">Ingrese sus credenciales para acceder a su panel de despacho.</p>
+          {!show2FA ? (
+            <>
+              <h1 className="login-title">Bienvenido de nuevo</h1>
+              <p className="login-subtitle">Ingrese sus credenciales para acceder a su panel de despacho.</p>
 
-          <form onSubmit={submit} style={{ display: "grid", gap: "1rem", marginTop: "0.25rem" }}>
-            {/* Email */}
-            <div style={{ display: "grid", gap: "6px" }}>
-              <label className="stitch-label" htmlFor="email">Correo Electrónico</label>
-              <div className="input-with-icon">
-                <Mail size={18} className="input-icon" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nombre@empresa.com"
-                  className="stitch-input"
-                  required
-                />
-              </div>
-            </div>
+              <form onSubmit={submit} style={{ display: "grid", gap: "1rem", marginTop: "0.25rem" }}>
+                {/* Email */}
+                <div style={{ display: "grid", gap: "6px" }}>
+                  <label className="stitch-label" htmlFor="email">Correo Electrónico</label>
+                  <div className="input-with-icon">
+                    <Mail size={18} className="input-icon" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="nombre@empresa.com"
+                      className="stitch-input"
+                      required
+                    />
+                  </div>
+                </div>
 
-            {/* Password */}
-            <div style={{ display: "grid", gap: "6px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label className="stitch-label" htmlFor="password">Contraseña</label>
-                <a href="#" className="stitch-link-sm">¿Olvidé mi contraseña?</a>
-              </div>
-              <div className="input-with-icon">
-                <Lock size={18} className="input-icon" />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="stitch-input"
-                  style={{ paddingRight: "2.75rem" }}
-                  required
-                />
-                <button
-                  type="button"
-                  className="input-eye-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {/* Password */}
+                <div style={{ display: "grid", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label className="stitch-label" htmlFor="password">Contraseña</label>
+                    <Link href="/forgot-password" className="stitch-link-sm">¿Olvidé mi contraseña?</Link>
+                  </div>
+                  <div className="input-with-icon">
+                    <Lock size={18} className="input-icon" />
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="stitch-input"
+                      style={{ paddingRight: "2.75rem" }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="input-eye-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember me */}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
+                  <input
+                    id="remember"
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="stitch-checkbox"
+                  />
+                  <label htmlFor="remember" className="stitch-body-label">Recordarme</label>
+                </div>
+
+                {error && <p className="error-text">{error}</p>}
+
+                {/* Submit */}
+                <button type="submit" className="stitch-submit-btn" disabled={loading}>
+                  {loading ? "Iniciando..." : (
+                    <>Iniciar sesión <ArrowRight size={18} /></>
+                  )}
                 </button>
+              </form>
+
+              {/* Footer link */}
+              <div className="login-footer-divider">
+                <p>¿No tiene una cuenta? <a href="#" className="stitch-link">Contacte a Soporte</a></p>
               </div>
-            </div>
 
-            {/* Remember me */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
-              <input
-                id="remember"
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="stitch-checkbox"
-              />
-              <label htmlFor="remember" className="stitch-body-label">Recordarme</label>
-            </div>
-
-            {error && <p className="error-text">{error}</p>}
-
-            {/* Submit */}
-            <button type="submit" className="stitch-submit-btn" disabled={loading}>
-              {loading ? "Iniciando..." : (
-                <>Iniciar sesión <ArrowRight size={18} /></>
-              )}
-            </button>
-          </form>
-
-          {/* Footer link */}
-          <div className="login-footer-divider">
-            <p>¿No tiene una cuenta? <a href="#" className="stitch-link">Contacte a Soporte</a></p>
-          </div>
-
-          {/* Demo credentials hint */}
-          <div className="hint-box">
-            <p className="hint-label">Credenciales demo</p>
-            <p>Admin: maria.gonzalez@company.com / admin123</p>
-            <p>Técnico: juan.perez@company.com / tech123</p>
-          </div>
+              {/* Demo credentials hint */}
+              <div className="hint-box">
+                <p className="hint-label">Credenciales demo</p>
+                <p>Admin: maria.gonzalez@company.com / admin123</p>
+                <p>Técnico: juan.perez@company.com / tech123</p>
+                <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#718096" }}>2FA: 123123</p>
+              </div>
+            </>
+          ) : (
+            <TwoFactorAuth 
+              email={email} 
+              onVerify={handleVerify2FA}
+              onCancel={handleCancel2FA}
+              loading={loading}
+            />
+          )}
         </div>
       </section>
     </main>

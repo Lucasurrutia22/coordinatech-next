@@ -90,7 +90,7 @@ export interface WorkOrder {
     type: string;
     size: number;
     url: string; // data:... URL o URL externa
-    uploaded_at: string;
+    uploadedAt: string;
   }>;
   photos?: Array<{
     id: string;
@@ -98,6 +98,7 @@ export interface WorkOrder {
     type: string;
     size: number;
     url: string; // data:image/... URL
+    uploadedAt: string;
     uploaded_at: string;
   }>;
 }

@@ -81,7 +81,7 @@ export function DocumentsViewer({ workOrder }: { workOrder: WorkOrder }) {
                 {doc.name}
               </p>
               <p style={{ margin: "0.2rem 0 0", fontSize: "0.7rem", color: "var(--muted)" }}>
-                {formatSize(doc.size)} • {new Date(doc.uploaded_at).toLocaleDateString()}
+                {formatSize(doc.size)} • {new Date(doc.uploadedAt).toLocaleDateString()}
               </p>
             </div>
           </div>
