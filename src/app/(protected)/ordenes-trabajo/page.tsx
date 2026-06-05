@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
-import { DocumentViewer } from "@/components/DocumentViewer";
+import { DocumentsViewer } from "@/components/DocumentsViewer";
 import { useAppContext } from "@/context/AppContext";
 import { Avatar } from "@/components/Avatar";
 import { TICKET_TYPE_META, TicketType, WorkOrder } from "@/types/domain";
@@ -146,7 +146,7 @@ function WorkOrderRow({ order, ticketTitle, typeMeta }: {
                     <p style={{ margin: "0 0 0.75rem", fontSize: "0.82rem", fontWeight: 600, color: "var(--ink)" }}>
                       📎 Documentos Adjuntos ({order.documents.length})
                     </p>
-                    <DocumentViewer documents={order.documents} />
+                    <DocumentsViewer workOrder={order} />
                   </div>
                 </>
               )}            </div>

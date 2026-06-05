@@ -83,11 +83,21 @@ export interface WorkOrder {
   recibe_cargo: string;
   rating: number;
   razon_calificacion: string;
-  // Documentos
+  // Documentos y fotos (JSON en Supabase)
   documents?: Array<{
+    id: string;
     name: string;
     type: string;
-    data: string; // base64 data URL
-    uploadedAt: string;
+    size: number;
+    url: string; // data:... URL o URL externa
+    uploaded_at: string;
+  }>;
+  photos?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    url: string; // data:image/... URL
+    uploaded_at: string;
   }>;
 }

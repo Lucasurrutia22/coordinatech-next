@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Upload, X, FileText, ImageIcon, Loader } from "lucide-react";
 
 export interface DocumentFile {
+  id: string;
   name: string;
   type: string;
-  data: string; // base64 data URL
+  size: number;
+  url: string; // data:... URL
   uploadedAt: string;
 }
 
@@ -26,6 +28,7 @@ export function DocumentUploader({
     setUploading(true);
     const files = Array.from(e.target.files);
     const newDocs: DocumentFile[] = [];
+    let completed = 0;
 
     for (const file of files) {
       try {
@@ -33,15 +36,18 @@ export function DocumentUploader({
         reader.onload = (event) => {
           if (event.target?.result) {
             const doc: DocumentFile = {
+              id: `${Date.now()}-${Math.random()}`,
               name: file.name,
               type: file.type,
-              data: event.target.result as string,
+              size: file.size,
+              url: event.target.result as string,
               uploadedAt: new Date().toISOString(),
             };
             newDocs.push(doc);
+            completed++;
 
             // Si es el último archivo, actualiza el estado
-            if (newDocs.length === files.length) {
+            if (completed === files.length) {
               const updated = [...localDocs, ...newDocs];
               setLocalDocs(updated);
               onDocumentsChange(updated);
@@ -52,14 +58,21 @@ export function DocumentUploader({
         reader.readAsDataURL(file);
       } catch (err) {
         console.error("Error al cargar archivo:", err);
+        completed++;
       }
     }
   };
 
-  const removeDocument = (index: number) => {
-    const updated = localDocs.filter((_, i) => i !== index);
+  const removeDocument = (id: string) => {
+    const updated = localDocs.filter((d) => d.id !== id);
     setLocalDocs(updated);
     onDocumentsChange(updated);
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
   return (
@@ -117,9 +130,9 @@ export function DocumentUploader({
           <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--ink)", margin: 0 }}>
             📎 Documentos cargados ({localDocs.length})
           </p>
-          {localDocs.map((doc, idx) => (
+          {localDocs.map((doc) => (
             <div
-              key={idx}
+              key={doc.id}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -149,21 +162,28 @@ export function DocumentUploader({
                   >
                     {doc.name}
                   </p>
-                  <p style={{ margin: 0, fontSize: "0.7rem", color: "var(--muted)" }}>
-                    {new Date(doc.uploadedAt).toLocaleTimeString()}
+                  <p style={{ margin: "0.2rem 0 0", fontSize: "0.7rem", color: "var(--muted)" }}>
+                    {formatSize(doc.size)}
                   </p>
                 </div>
               </div>
               <button
-                type="button"
-                onClick={() => removeDocument(idx)}
+                onClick={() => removeDocument(doc.id)}
                 style={{
                   background: "none",
                   border: "none",
-                  color: "var(--muted)",
                   cursor: "pointer",
                   padding: "0.5rem",
-                  flexShrink: 0,
+                  color: "var(--muted)",
+                  transition: "color 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "#dc2626";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)";
                 }}
               >
                 <X size={18} />
@@ -172,13 +192,6 @@ export function DocumentUploader({
           ))}
         </div>
       )}
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
