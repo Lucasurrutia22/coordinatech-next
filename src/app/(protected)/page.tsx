@@ -1,36 +1,72 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock3, ListTodo, TriangleAlert, Users } from "lucide-react";
+import { CheckCircle2, Clock3, ListTodo, TriangleAlert, Users, AlertTriangle } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
+import { SLABadge, SLATimeRemaining } from "@/components/SLABadge";
 import { useAppContext } from "@/context/AppContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
 export default function DashboardPage() {
-  const { tickets, technicians } = useAppContext();
+  const { user, getVisibleTickets, technicians, getSLACompliance, getTicketsBySLAStatus } = useAppContext();
 
-  const pending    = tickets.filter((t) => t.status === "pending").length;
-  const inProgress = tickets.filter((t) => t.status === "in_progress").length;
-  const completed  = tickets.filter((t) => t.status === "completed").length;
+  const visibleTickets = getVisibleTickets();
+  const slaCompliance = getSLACompliance();
+  const slaBySatus = getTicketsBySLAStatus();
+
+  const pending    = visibleTickets.filter((t) => t.status === "pending").length;
+  const inProgress = visibleTickets.filter((t) => t.status === "in_progress").length;
+  const completed  = visibleTickets.filter((t) => t.status === "completed").length;
   const activeTechs = technicians.filter((t) => t.active).length;
 
   return (
     <section className="stack-lg">
       {/* Metrics */}
       <div className="grid-metrics">
-        <MetricCard label="Tickets totales"  value={String(tickets.length)} hint="Carga operacional actual"     icon={<ListTodo size={16} />}  accent="#0ea472" />
+        <MetricCard label="Tickets totales"  value={String(visibleTickets.length)} hint="Carga operacional actual"     icon={<ListTodo size={16} />}  accent="#0ea472" />
         <MetricCard label="Pendientes"       value={String(pending)}        hint="Requieren asignacion"         icon={<TriangleAlert size={16} />} accent="#d97706" />
         <MetricCard label="En progreso"      value={String(inProgress)}     hint="Trabajo activo en terreno"    icon={<Clock3 size={16} />}   accent="#2563eb" />
-        <MetricCard label="Completados"      value={String(completed)}      hint="Tickets resueltos"            icon={<CheckCircle2 size={16} />} accent="#16a34a" />
+        <MetricCard label="SLA Critical"     value={String(slaBySatus.critical.length)}      hint="Vencidos o a punto de vencer"            icon={<AlertTriangle size={16} />} accent="#dc2626" />
       </div>
+
+      {/* SLA Compliance Bar */}
+      {user?.role === "admin" && (
+        <div className="panel" style={{ padding: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <h3 style={{ fontSize: "0.9rem", fontWeight: 600 }}>Cumplimiento de SLA</h3>
+            <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+              {slaCompliance.compliant} / {slaCompliance.total}
+            </span>
+          </div>
+          <div style={{ 
+            width: "100%", 
+            height: "8px", 
+            background: "#e5e7eb", 
+            borderRadius: "4px", 
+            overflow: "hidden" 
+          }}>
+            <div
+              style={{
+                width: `${slaCompliance.percentage}%`,
+                height: "100%",
+                background: slaCompliance.percentage >= 95 ? "#16a34a" : slaCompliance.percentage >= 85 ? "#d97706" : "#dc2626",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+          <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.5rem" }}>
+            {slaCompliance.percentage}% de cumplimiento
+          </p>
+        </div>
+      )}
 
       <div className="dashboard-grid">
         {/* Recent tickets */}
         <article className="panel">
           <div className="panel-header">
-            <h2>Tickets recientes</h2>
+            <h2>Tickets {user?.role === "admin" ? "recientes" : "asignados"}</h2>
             <Link href="/tickets" className="outline-btn" style={{ fontSize: "0.8rem", padding: "0.3rem 0.7rem" }}>Ver todos</Link>
           </div>
           <div className="table-wrap">
@@ -40,11 +76,12 @@ export default function DashboardPage() {
                   <th>Titulo</th>
                   <th>Estado</th>
                   <th>Prioridad</th>
+                  <th>SLA</th>
                   <th>Fecha</th>
                 </tr>
               </thead>
               <tbody>
-                {tickets.slice(0, 6).map((ticket) => (
+                {visibleTickets.slice(0, 6).map((ticket) => (
                   <tr key={ticket.id}>
                     <td>
                       <Link href={`/tickets/${ticket.id}`}>
@@ -54,6 +91,14 @@ export default function DashboardPage() {
                     </td>
                     <td><StatusPill status={ticket.status} /></td>
                     <td><PriorityPill priority={ticket.priority} /></td>
+                    <td>
+                      <SLABadge ticket={ticket} />
+                      {ticket.sla_deadline && (
+                        <div style={{ fontSize: "0.7rem", marginTop: "0.3rem" }}>
+                          <SLATimeRemaining deadline={ticket.sla_deadline} />
+                        </div>
+                      )}
+                    </td>
                     <td style={{ color: "var(--muted)", fontSize: "0.8rem" }}>
                       {format(new Date(ticket.scheduled_date), "dd MMM", { locale: es })}
                     </td>
@@ -61,7 +106,7 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            {tickets.length === 0 && <p className="muted" style={{ padding: "1rem" }}>No hay tickets aun.</p>}
+            {visibleTickets.length === 0 && <p className="muted" style={{ padding: "1rem" }}>No hay tickets aun.</p>}
           </div>
         </article>
 

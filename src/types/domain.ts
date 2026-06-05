@@ -38,7 +38,16 @@ export interface Ticket {
   scheduled_date: string;
   technician_id: string;
   created_at?: string;
+  sla_deadline?: string; // Fecha límite según SLA
+  sla_status?: "healthy" | "warning" | "critical"; // Estado del SLA
 }
+
+// SLA tiempos en horas según prioridad
+export const SLA_HOURS: Record<TicketPriority, number> = {
+  high: 2,
+  medium: 8,
+  low: 24,
+};
 
 export interface IncompleteReport {
   id: string;

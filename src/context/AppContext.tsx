@@ -19,6 +19,7 @@ import {
   getWorkOrders,
   updateTicket,
 } from "@/lib/repository";
+import { calculateSLACompliance, groupTicketsBySLAStatus } from "@/lib/sla";
 import { IncompleteReport, Technician, TICKET_TYPE_META, Ticket, UserRole, UserSession, WorkOrder } from "@/types/domain";
 
 interface AppContextType {
@@ -36,6 +37,11 @@ interface AppContextType {
   addTechnician: (technician: Omit<Technician, "id" | "created_at">) => Promise<void>;
   addWorkOrder: (data: Omit<WorkOrder, "id" | "submitted_at">) => Promise<void>;
   addIncompleteReport: (data: Omit<IncompleteReport, "id" | "reported_at">) => Promise<void>;
+  // Métodos de filtrado por rol
+  getVisibleTickets: () => Ticket[];
+  // Métodos de SLA
+  getSLACompliance: () => ReturnType<typeof calculateSLACompliance>;
+  getTicketsBySLAStatus: () => ReturnType<typeof groupTicketsBySLAStatus>;
 }
 
 const SESSION_KEY = "coordinatech_session";
@@ -218,6 +224,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTechnician: addTechnicianHandler,
       addWorkOrder: addWorkOrderHandler,
       addIncompleteReport: addIncompleteReportHandler,
+      // Filtro por rol: admin ve todos, técnico solo sus tickets
+      getVisibleTickets: () => {
+        if (!user) return [];
+        if (user.role === "admin") return tickets;
+        // Técnico ve solo sus tickets asignados
+        return tickets.filter((t) => t.technician_id === user.id);
+      },
+      // Cálculo de SLA
+      getSLACompliance: () => calculateSLACompliance(tickets),
+      getTicketsBySLAStatus: () => groupTicketsBySLAStatus(tickets),
     }),
     [
       user,

@@ -1,42 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
+import { SLABadge, SLATimeRemaining } from "@/components/SLABadge";
 import { useAppContext } from "@/context/AppContext";
-import { TICKET_TYPE_META, TicketStatus } from "@/types/domain";
-
-function getSLA(scheduledDate: string, status: TicketStatus) {
-  if (status === "completed") return null;
-  const diffMs  = new Date(scheduledDate).getTime() - Date.now();
-  const overdue = diffMs < 0;
-  const totalH  = Math.abs(Math.floor(diffMs / 3_600_000));
-  const mins    = Math.abs(Math.floor((diffMs % 3_600_000) / 60_000));
-  const days    = Math.floor(totalH / 24);
-
-  let label: string;
-  if (overdue)         label = totalH >= 24 ? `${days}d vencido` : `${totalH}h vencido`;
-  else if (totalH < 2) label = `${totalH}h ${mins}m`;
-  else if (totalH < 24) label = `${totalH}h`;
-  else                  label = `${days}d ${totalH % 24}h`;
-
-  const color  = overdue ? "#dc2626" : totalH < 24 ? "#d97706" : "#16a34a";
-  const bg     = overdue ? "#fef2f2" : totalH < 24 ? "#fffbeb" : "#f0fdf4";
-  const border = overdue ? "#fca5a5" : totalH < 24 ? "#fcd34d" : "#86efac";
-  return { label, color, bg, border };
-}
+import { TICKET_TYPE_META } from "@/types/domain";
 
 export default function TicketsPage() {
-  const { tickets, technicians, user } = useAppContext();
+  const { getVisibleTickets, technicians, user } = useAppContext();
+  const tickets = getVisibleTickets();
 
   return (
     <section className="panel">
       <div className="panel-header">
         <div>
-          <h2 style={{ marginBottom: 0 }}>Tickets</h2>
-          <p className="muted">{tickets.length} ticket{tickets.length !== 1 ? "s" : ""} registrados</p>
+          <h2 style={{ marginBottom: 0 }}>Tickets {user?.role === "admin" ? "(Administrador)" : "(Mis tickets)"}</h2>
+          <p className="muted">{tickets.length} ticket{tickets.length !== 1 ? "s" : ""} {user?.role === "admin" ? "registrados" : "asignados"}</p>
         </div>
         {user?.role === "admin" && (
           <Link className="primary-btn" href="/tickets/new">
@@ -53,15 +35,14 @@ export default function TicketsPage() {
               <th className="table-hide-xs">Tecnico</th>
               <th>Estado</th>
               <th className="table-hide-xs">Prioridad</th>
+              <th>SLA</th>
               <th className="table-hide-xs">Programado</th>
-              {user?.role === "admin" && <th className="table-hide-xs">SLA</th>}
               <th></th>
             </tr>
           </thead>
           <tbody>
             {tickets.map((ticket) => {
               const tech = technicians.find((item) => item.id === ticket.technician_id);
-              const sla  = user?.role === "admin" ? getSLA(ticket.scheduled_date, ticket.status) : null;
               return (
                 <tr key={ticket.id}>
                   <td>
@@ -84,26 +65,17 @@ export default function TicketsPage() {
                   <td className="table-hide-xs">{tech?.name ?? <span className="muted">Sin asignar</span>}</td>
                   <td><StatusPill status={ticket.status} /></td>
                   <td className="table-hide-xs"><PriorityPill priority={ticket.priority} /></td>
+                  <td style={{ fontSize: "0.75rem" }}>
+                    <SLABadge ticket={ticket} />
+                    {ticket.sla_deadline && (
+                      <div style={{ marginTop: "0.3rem", fontSize: "0.7rem" }}>
+                        <SLATimeRemaining deadline={ticket.sla_deadline} />
+                      </div>
+                    )}
+                  </td>
                   <td className="table-hide-xs" style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
                     {format(new Date(ticket.scheduled_date), "dd MMM yyyy, HH:mm", { locale: es })}
                   </td>
-                  {user?.role === "admin" && (
-                    <td className="table-hide-xs">
-                      {sla ? (
-                        <span style={{
-                          display: "inline-flex", alignItems: "center", gap: 3,
-                          padding: "0.18rem 0.5rem", borderRadius: "var(--r-sm)",
-                          background: sla.bg, color: sla.color,
-                          border: `1px solid ${sla.border}`,
-                          fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap",
-                        }}>
-                          <Clock size={10} /> {sla.label}
-                        </span>
-                      ) : (
-                        <span className="muted" style={{ fontSize: "0.74rem" }}>—</span>
-                      )}
-                    </td>
-                  )}
                   <td><Link href={`/tickets/${ticket.id}`}>Ver</Link></td>
                 </tr>
               );
@@ -111,7 +83,7 @@ export default function TicketsPage() {
           </tbody>
         </table>
         {tickets.length === 0 && (
-          <p className="muted" style={{ padding: "1.5rem", textAlign: "center" }}>No hay tickets aun. Crea el primero.</p>
+          <p className="muted" style={{ padding: "1.5rem", textAlign: "center" }}>No hay tickets aun. {user?.role === "admin" ? "Crea el primero." : "Tu equipo no tiene tickets asignados."}</p>
         )}
       </div>
     </section>
