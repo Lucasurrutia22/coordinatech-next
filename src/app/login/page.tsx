@@ -1,0 +1,159 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Grid3x3, Mail, Lock, Eye, EyeOff, ArrowRight, Users } from "lucide-react";
+import { useAppContext } from "@/context/AppContext";
+import { UserRole } from "@/types/domain";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const { login } = useAppContext();
+  const [email, setEmail] = useState("juan.perez@company.com");
+  const [password, setPassword] = useState("tech123");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    // Auto-detect role: admin email uses admin path, all others use tech path
+    const role: UserRole = email === "maria.gonzalez@company.com" ? "admin" : "tech";
+    const success = await login(email, password, role);
+    setLoading(false);
+    if (!success) {
+      setError("Credenciales invalidas. Verifica correo y contraseña.");
+      return;
+    }
+    router.replace("/");
+  };
+
+  return (
+    <main className="login-screen">
+      {/* ── Left: Visual Anchor ── */}
+      <section className="login-visual">
+        <div className="login-gradient-overlay" />
+
+        {/* Stat badge — top left */}
+        <div className="login-stat-badge">
+          <Users size={20} />
+          <div>
+            <p className="stat-label">Técnicos Activos</p>
+            <p className="stat-value">1,284</p>
+          </div>
+        </div>
+
+        {/* Bottom headline */}
+        <div className="login-headline">
+          <h2>Precisión logística en cada movimiento.</h2>
+          <p>Gestione flotas, técnicos y horarios con la plataforma de coordinación más avanzada del sector.</p>
+          <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem", opacity: 0.5 }}>
+            <div style={{ height: "4px", width: "48px", background: "white", borderRadius: "9999px" }} />
+            <div style={{ height: "4px", width: "32px", background: "rgba(255,255,255,0.4)", borderRadius: "9999px" }} />
+            <div style={{ height: "4px", width: "32px", background: "rgba(255,255,255,0.4)", borderRadius: "9999px" }} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Right: Login Form ── */}
+      <section className="login-form-panel">
+        <div className="login-card-stitch">
+          {/* Brand header */}
+          <div className="login-brand-header">
+            <div className="login-logo-icon">
+              <Grid3x3 size={20} color="white" strokeWidth={1.5} />
+            </div>
+            <span className="login-wordmark">Coordinatech</span>
+          </div>
+
+          <h1 className="login-title">Bienvenido de nuevo</h1>
+          <p className="login-subtitle">Ingrese sus credenciales para acceder a su panel de despacho.</p>
+
+          <form onSubmit={submit} style={{ display: "grid", gap: "1rem", marginTop: "0.25rem" }}>
+            {/* Email */}
+            <div style={{ display: "grid", gap: "6px" }}>
+              <label className="stitch-label" htmlFor="email">Correo Electrónico</label>
+              <div className="input-with-icon">
+                <Mail size={18} className="input-icon" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nombre@empresa.com"
+                  className="stitch-input"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div style={{ display: "grid", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label className="stitch-label" htmlFor="password">Contraseña</label>
+                <a href="#" className="stitch-link-sm">¿Olvidé mi contraseña?</a>
+              </div>
+              <div className="input-with-icon">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="stitch-input"
+                  style={{ paddingRight: "2.75rem" }}
+                  required
+                />
+                <button
+                  type="button"
+                  className="input-eye-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
+              <input
+                id="remember"
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="stitch-checkbox"
+              />
+              <label htmlFor="remember" className="stitch-body-label">Recordarme</label>
+            </div>
+
+            {error && <p className="error-text">{error}</p>}
+
+            {/* Submit */}
+            <button type="submit" className="stitch-submit-btn" disabled={loading}>
+              {loading ? "Iniciando..." : (
+                <>Iniciar sesión <ArrowRight size={18} /></>
+              )}
+            </button>
+          </form>
+
+          {/* Footer link */}
+          <div className="login-footer-divider">
+            <p>¿No tiene una cuenta? <a href="#" className="stitch-link">Contacte a Soporte</a></p>
+          </div>
+
+          {/* Demo credentials hint */}
+          <div className="hint-box">
+            <p className="hint-label">Credenciales demo</p>
+            <p>Admin: maria.gonzalez@company.com / admin123</p>
+            <p>Técnico: juan.perez@company.com / tech123</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
