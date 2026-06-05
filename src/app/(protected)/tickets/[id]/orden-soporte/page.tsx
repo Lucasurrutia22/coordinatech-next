@@ -7,6 +7,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAppContext } from "@/context/AppContext";
+import { DocumentUploader, DocumentFile } from "@/components/DocumentUploader";
 const ZOHO_URL =
   "https://forms.zohopublic.com/virtualoffice12892/form/OrdendeSoporte/formperma/dvHAoHck2qvyQ8lww42gPBGtdn5T_xvx0896QCrQbrw/htmlRecords/submit";
 
@@ -199,6 +200,7 @@ export default function OrdenSoportePage() {
   const ratingInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [ratingError, setRatingError] = useState(false);
+  const [documents, setDocuments] = useState<DocumentFile[]>([]);
 
   if (!ticket) {
     return <section className="panel">Ticket no encontrado.</section>;
@@ -262,6 +264,7 @@ export default function OrdenSoportePage() {
       recibe_cargo: g("SingleLine5"),
       rating: parseInt(rating, 10),
       razon_calificacion: g("MultiLine3"),
+      documents: documents, // Incluir documentos
     };
 
     // Guardar en Supabase/localStorage (fire-and-forget - el form continúa a Zoho)
@@ -626,6 +629,17 @@ export default function OrdenSoportePage() {
             <SignaturePad sigInputRef={sigInputRef} />
           </div>
         </div>
+      </article>
+
+      {/* ══════════════════════════════════════════════ */}
+      {/* SECCIÓN 5: CARGA DE DOCUMENTOS                */}
+      {/* ══════════════════════════════════════════════ */}
+      <article className="panel">
+        <SectionTitle>📎 Documentación del Trabajo</SectionTitle>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+          Cargue evidencia fotográfica, screenshots, comprobantes o cualquier documento que respalde el trabajo realizado.
+        </p>
+        <DocumentUploader documents={documents} onDocumentsChange={setDocuments} />
       </article>
 
       {/* ── Botones ── */}

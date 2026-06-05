@@ -83,4 +83,11 @@ export interface WorkOrder {
   recibe_cargo: string;
   rating: number;
   razon_calificacion: string;
+  // Documentos
+  documents?: Array<{
+    name: string;
+    type: string;
+    data: string; // base64 data URL
+    uploadedAt: string;
+  }>;
 }
