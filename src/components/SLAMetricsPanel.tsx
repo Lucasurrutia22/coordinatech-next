@@ -9,7 +9,7 @@ interface SLAMetric {
   id: string;
   description: string;
   client_name: string;
-  priority: string;
+  priority: 'low' | 'medium' | 'high';
   status: string;
   created_at: string;
   sla_percent: number;

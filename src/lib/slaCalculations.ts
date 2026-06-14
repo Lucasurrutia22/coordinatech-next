@@ -57,7 +57,7 @@ export function calculateSLA(
 export function calculateSLACompliance(
   tickets: Array<{
     created_at: string;
-    priority: string;
+    priority: 'low' | 'medium' | 'high';
     status: string;
   }>
 ): number {
@@ -116,7 +116,7 @@ export function calculateAggregatedMetrics(
     id: string;
     description: string;
     created_at: string;
-    priority: string;
+    priority: 'low' | 'medium' | 'high';
     status: string;
     updated_at?: string;
   }>
@@ -143,7 +143,7 @@ export function calculateAggregatedMetrics(
   let avgResolutionTime = 0;
   if (completedTickets.length > 0) {
     const totalHours = completedTickets.reduce((sum, ticket) => {
-      const sla = calculateSLA(new Date(ticket.created_at), ticket.priority as any, ticket.status);
+      const sla = calculateSLA(new Date(ticket.created_at), ticket.priority, ticket.status);
       return sum + (sla.timeWindow - sla.hoursRemaining);
     }, 0);
     avgResolutionTime = totalHours / completedTickets.length;

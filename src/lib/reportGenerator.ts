@@ -4,8 +4,8 @@ import autoTable from 'jspdf-autotable';
 interface ReportData {
   ticketId: string;
   description: string;
-  priority: string;
-  status: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'not_completed';
   technician?: string;
   clientName: string;
   createdAt: Date;

@@ -104,7 +104,7 @@ export function useNotificationToast() {
 
 // Sistema de notificaciones para alertas SLA críticas
 export function useSLACriticalAlerts(
-  tickets: Array<{ id: string; created_at: string; priority: string; status: string; description: string }>,
+  tickets: Array<{ id: string; created_at: string; priority: 'low' | 'medium' | 'high'; status: string; description: string }>,
   onAlert: NotificationCallback
 ) {
   const { calculateSLA } = require('@/lib/slaCalculations');

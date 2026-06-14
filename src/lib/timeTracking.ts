@@ -268,7 +268,7 @@ export async function getLiveWorkTimer(ticketId: string): Promise<{
   isRunning: boolean;
   elapsedMs: number;
   startTime?: Date;
-  lastEvent?: 'started' | 'paused' | 'resumed';
+  lastEvent?: 'started' | 'paused' | 'resumed' | 'completed';
 }> {
   const { data: ticket, error } = await supabase
     .from('tickets')
@@ -350,7 +350,7 @@ export async function getTechnicianAverageWorkTime(
     .select('work_duration_ms, active_duration_ms')
     .eq('technician_id', technicianId)
     .gte('work_ended_at', startDate.toISOString())
-    .is('work_ended_at', null, { not: true });
+    .not('work_ended_at', 'is', null);
 
   if (error) throw error;
 

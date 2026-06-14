@@ -13,7 +13,7 @@ import { Clock, AlertTriangle } from 'lucide-react';
 interface Ticket {
   id: string;
   description: string;
-  priority: string;
+  priority: 'low' | 'medium' | 'high';
   status: string;
   client_name: string;
   technician_id: string;

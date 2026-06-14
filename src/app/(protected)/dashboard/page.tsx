@@ -12,8 +12,8 @@ interface Ticket {
   id: string;
   description: string;
   created_at: string;
-  priority: string;
-  status: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'not_completed';
   updated_at?: string;
   technician_id?: string;
   client_name?: string;

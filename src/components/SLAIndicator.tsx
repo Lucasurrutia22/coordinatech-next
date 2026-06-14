@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';
-import { calculateSLA } from '@/lib/slaCalculations';
+import { calculateSLA, type SLACalculation } from '@/lib/slaCalculations';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 interface SLAIndicatorProps {
   ticketId: string;
   createdAt: string;
-  priority: string;
+  priority: 'low' | 'medium' | 'high';
   status: string;
   compact?: boolean;
 }
@@ -19,7 +19,7 @@ export function SLAIndicator({
   status,
   compact = false,
 }: SLAIndicatorProps) {
-  const [sla, setSla] = useState<any>(null);
+  const [sla, setSla] = useState<SLACalculation | null>(null);
 
   useEffect(() => {
     const updateSla = () => {

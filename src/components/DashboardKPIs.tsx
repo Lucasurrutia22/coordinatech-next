@@ -23,8 +23,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       <MetricCard
         title="Completados Hoy"
         value={metrics.completedToday.toString()}
-        icon={CheckCircle}
-        trend={metrics.completedToday > 0 ? 'up' : 'neutral'}
+        icon={<CheckCircle className="w-5 h-5" />}
         trendValue={`${Math.round((metrics.completedToday / Math.max(metrics.totalTickets, 1)) * 100)}%`}
       />
 
@@ -32,8 +31,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       <MetricCard
         title="Pendientes"
         value={metrics.pendingTickets.toString()}
-        icon={Clock}
-        trend={metrics.pendingTickets > 5 ? 'down' : 'up'}
+        icon={<Clock className="w-5 h-5" />}
         trendValue={`${metrics.pendingTickets} en cola`}
       />
 
@@ -41,8 +39,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       <MetricCard
         title="Cumplimiento SLA"
         value={`${metrics.slaComplianceRate.toFixed(1)}%`}
-        icon={TrendingUp}
-        trend={slaHealth === 'good' ? 'up' : 'down'}
+        icon={<TrendingUp className="w-5 h-5" />}
         trendValue={slaHealth === 'good' ? 'Óptimo' : slaHealth === 'warning' ? 'Alerta' : 'Crítico'}
       />
 
@@ -50,8 +47,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       <MetricCard
         title="Ahorros del Mes"
         value={`$${(metrics.estimatedLossesPrevented / 1000).toFixed(0)}K`}
-        icon={DollarSign}
-        trend="up"
+        icon={<DollarSign className="w-5 h-5" />}
         trendValue={`vs $4M potencial`}
       />
 
