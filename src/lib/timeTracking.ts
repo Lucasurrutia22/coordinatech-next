@@ -362,8 +362,8 @@ export async function getTechnicianAverageWorkTime(
     };
   }
 
-  const totalDuration = tickets.reduce((sum, t) => sum + (t.work_duration_ms || 0), 0);
-  const totalActive = tickets.reduce((sum, t) => sum + (t.active_duration_ms || 0), 0);
+  const totalDuration = tickets.reduce((sum: number, t: any) => sum + (t.work_duration_ms || 0), 0);
+  const totalActive = tickets.reduce((sum: number, t: any) => sum + (t.active_duration_ms || 0), 0);
 
   return {
     average_total_ms: Math.round(totalDuration / tickets.length),
@@ -399,10 +399,10 @@ export async function getTechnicianBreakStats(
     };
   }
 
-  const totalBreakTime = breaks.reduce((sum, b) => sum + (b.break_duration_ms || 0), 0);
+  const totalBreakTime = breaks.reduce((sum: number, b: any) => sum + (b.break_duration_ms || 0), 0);
   const breakReasons: { [key: string]: number } = {};
 
-  breaks.forEach(b => {
+  breaks.forEach((b: any) => {
     const reason = b.break_reason || 'Sin especificar';
     breakReasons[reason] = (breakReasons[reason] || 0) + 1;
   });

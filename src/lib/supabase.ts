@@ -5,11 +5,21 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. ' +
-    'Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  );
-}
-
-export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
+// Crear client si las variables están disponibles, null en build time si no las hay
+export const supabase = hasSupabaseEnv
+  ? createClient(supabaseUrl as string, supabaseAnonKey as string)
+  : {
+      // Proxy que lanza error en runtime si se intenta usar sin variables
+      auth: new Proxy({}, {
+        get: () => {
+          throw new Error(
+            'Supabase is not configured. Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+          );
+        }
+      }),
+      from: () => {
+        throw new Error(
+          'Supabase is not configured. Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY'
+        );
+      }
+    } as any;

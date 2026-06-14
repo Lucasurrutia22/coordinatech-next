@@ -16,6 +16,15 @@ interface SLAMetric {
   sla_status: 'critical' | 'warning' | 'ok' | 'completed';
 }
 
+interface TicketData {
+  id: string;
+  description: string;
+  client_name?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: string;
+  created_at: string;
+}
+
 interface SLAStats {
   totalTickets: number;
   criticalCount: number;
@@ -51,7 +60,7 @@ export function SLAMetricsPanel() {
       }
 
       // Calcular SLA para cada ticket
-      const slaMetrics: SLAMetric[] = tickets.map(ticket => {
+      const slaMetrics: SLAMetric[] = (tickets as TicketData[]).map((ticket: TicketData) => {
         const sla = calculateSLA(new Date(ticket.created_at), ticket.priority, ticket.status);
         return {
           id: ticket.id,
