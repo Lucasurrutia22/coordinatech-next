@@ -22,7 +22,7 @@ export default function NewTicketPage() {
   const [address, setAddress] = useState("");
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().slice(0, 16));
   const [priority, setPriority] = useState<TicketPriority>("medium");
-  const [technicianId, setTechnicianId] = useState("");
+  const [technicianId, setTechnicianId] = useState(""); // Vacío = sin asignar
 
   // Preview del ID correlativo
   const previewId = useMemo(() => {
@@ -39,10 +39,10 @@ export default function NewTicketPage() {
       title,
       description,
       address,
-      status: "pending",
+      status: technicianId ? "assigned" : "pending", // Cambiar a "assigned" si hay técnico
       priority,
       scheduled_date: new Date(scheduledDate).toISOString(),
-      technician_id: technicianId || defaultTech,
+      technician_id: technicianId, // Puede ser vacío
     });
     router.push("/tickets");
   };
@@ -134,11 +134,12 @@ export default function NewTicketPage() {
           </select>
         </label>
         <label>
-          Tecnico
+          Tecnico (Opcional)
           <select
-            value={technicianId || defaultTech}
+            value={technicianId}
             onChange={(event) => setTechnicianId(event.target.value)}
           >
+            <option value="">📋 Sin asignar (disponible para aceptar)</option>
             {technicians.map((tech) => (
               <option key={tech.id} value={tech.id}>
                 {tech.name}

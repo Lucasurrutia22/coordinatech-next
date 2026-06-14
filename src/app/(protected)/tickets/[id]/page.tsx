@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, ClipboardCheck, Clock, 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
+import { WorkTimer } from "@/components/WorkTimer";
 import { useAppContext } from "@/context/AppContext";
 import { Avatar } from "@/components/Avatar";
 import { TicketStatus } from "@/types/domain";
@@ -302,31 +303,51 @@ export default function TicketDetailPage() {
         </ActionPanel>
       )}
 
-      {/* Técnico: en progreso */}
-      {isMyTicket && ticket.status === "in_progress" && (
-        <ActionPanel
-          title="Trabajo en progreso"
-          subtitle="Completa la orden de soporte, o registra que el trabajo no pudo completarse con evidencia fotográfica."
-        >
-          <button
-            onClick={openNCModal}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              padding: "0.5rem 1rem", fontSize: "0.82rem", fontWeight: 600,
-              border: "1px solid #fca5a5", borderRadius: "var(--r-sm)",
-              background: "#fff1f2", color: "#b91c1c", cursor: "pointer",
-            }}
+      {/* Técnico/Admin: en progreso */}
+      {(isMyTicket || user?.role === "admin") && ticket.status === "in_progress" && (
+        <>
+          <ActionPanel
+            title="Cronómetro de Trabajo"
+            subtitle="Registra el tiempo que dedicas a este ticket. Puedes pausar para descansos."
           >
-            <XCircle size={14} /> No completado
-          </button>
-          <Link
-            href={`/tickets/${ticket.id}/orden-soporte`}
-            className="primary-btn"
-            style={{ textDecoration: "none" }}
+            <WorkTimer
+              ticketId={ticket.id}
+              technicianId={tech?.id || user?.id || ""}
+              userRole={user?.role as 'admin' | 'technician' | 'user'}
+              compact={true}
+              onWorkStarted={() => console.log("Trabajo iniciado")}
+              onWorkPaused={() => console.log("Trabajo pausado")}
+              onWorkCompleted={() => {
+                // Recargar datos después de completar
+                setTimeout(() => window.location.reload(), 500);
+              }}
+            />
+          </ActionPanel>
+
+          <ActionPanel
+            title="Acciones Disponibles"
+            subtitle="Completa la orden de soporte, o registra que el trabajo no pudo completarse."
           >
-            <ClipboardCheck size={14} /> Completar Orden de Soporte
-          </Link>
-        </ActionPanel>
+            <button
+              onClick={openNCModal}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "0.5rem 1rem", fontSize: "0.82rem", fontWeight: 600,
+                border: "1px solid #fca5a5", borderRadius: "var(--r-sm)",
+                background: "#fff1f2", color: "#b91c1c", cursor: "pointer",
+              }}
+            >
+              <XCircle size={14} /> No completado
+            </button>
+            <Link
+              href={`/tickets/${ticket.id}/orden-soporte`}
+              className="primary-btn"
+              style={{ textDecoration: "none" }}
+            >
+              <ClipboardCheck size={14} /> Completar Orden de Soporte
+            </Link>
+          </ActionPanel>
+        </>
       )}
 
       {/* ── Panel de evidencia: ticket no completado ── */}

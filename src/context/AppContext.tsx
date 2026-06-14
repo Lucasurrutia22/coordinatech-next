@@ -39,6 +39,7 @@ interface AppContextType {
   addIncompleteReport: (data: Omit<IncompleteReport, "id" | "reported_at">) => Promise<void>;
   // Métodos de filtrado por rol
   getVisibleTickets: () => Ticket[];
+  getAvailableTickets: () => Ticket[];  // Tickets sin asignar (para que técnicos acepten)
   // Métodos de SLA
   getSLACompliance: () => ReturnType<typeof calculateSLACompliance>;
   getTicketsBySLAStatus: () => ReturnType<typeof groupTicketsBySLAStatus>;
@@ -100,6 +101,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshData().finally(() => setIsReady(true));
   }, [refreshData]);
 
+  // ── Polling automático cada 10 segundos para sincronizar datos en tiempo real ──
+  useEffect(() => {
+    if (!isReady) return;
+    const intervalId = setInterval(() => {
+      refreshData();
+    }, 10000); // Cada 10 segundos
+
+    return () => clearInterval(intervalId);
+  }, [isReady, refreshData]);
+
   const login = useCallback(
     async (email: string, password: string, role: UserRole): Promise<boolean> => {
       if (role === "admin") {
@@ -146,13 +157,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addTicketHandler = useCallback(
     async (ticket: Omit<Ticket, "id" | "created_at">) => {
-      const payload: Ticket = {
-        ...ticket,
-        id: nextTicketId(ticket.ticket_type, tickets),
-        created_at: new Date().toISOString(),
-      };
-      await createTicket(payload);
-      await refreshData();
+      try {
+        const payload: Ticket = {
+          ...ticket,
+          id: nextTicketId(ticket.ticket_type, tickets),
+          created_at: new Date().toISOString(),
+        };
+        await createTicket(payload);
+        await refreshData();
+      } catch (error) {
+        console.error("Error al crear ticket:", error);
+        // Recargar datos para sincronizar con servidor
+        await refreshData();
+        // Re-lanzar el error para que se maneje en la UI
+        throw error;
+      }
     },
     [refreshData, tickets],
   );
@@ -162,11 +181,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTickets((prev) => prev.map((item) => (item.id === id ? { ...item, ...payload } : item)));
       try {
         await updateTicket(id, payload);
+        await refreshData(); // ← AGREGADO: Sincronizar después de actualizar
       } catch (error) {
         console.error("No se pudo persistir el ticket actualizado:", error);
+        await refreshData(); // Recargar para revertir cambios fallidos
       }
     },
-    [],
+    [refreshData],
   );
 
   const addTechnicianHandler = useCallback(
@@ -230,6 +251,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (user.role === "admin") return tickets;
         // Técnico ve solo sus tickets asignados
         return tickets.filter((t) => t.technician_id === user.id);
+      },
+      // Tickets sin asignar disponibles para que técnicos acepten
+      getAvailableTickets: () => {
+        if (!user || user.role === "admin") return [];
+        // Tickets que no tienen técnico asignado (technician_id vacío o null)
+        return tickets.filter((t) => !t.technician_id || t.technician_id === "");
       },
       // Cálculo de SLA
       getSLACompliance: () => calculateSLACompliance(tickets),

@@ -59,6 +59,7 @@ export default function EditTicketPage() {
         <label>
           Tecnico
           <select value={technicianId} onChange={(event) => setTechnicianId(event.target.value)}>
+            <option value="">📋 Sin asignar (disponible para aceptar)</option>
             {technicians.map((tech) => (
               <option key={tech.id} value={tech.id}>
                 {tech.name}

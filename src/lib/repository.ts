@@ -100,15 +100,21 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 
   if (hasSupabaseEnv && supabase) {
     try {
-      const { error } = await supabase.from("tickets").insert([enriched]);
-      if (!error) {
-        return;
+      // Solo guardar campos que existen en la tabla de Supabase
+      const { id, ticket_type, title, description, address, status, priority, scheduled_date, technician_id, created_at } = enriched;
+      const payload = { id, ticket_type, title, description, address, status, priority, scheduled_date, technician_id, created_at };
+      
+      const { error } = await supabase.from("tickets").insert([payload]);
+      if (error) {
+        throw new Error(`Supabase insert error: ${error.message} (${error.code})`);
       }
+      return;
     } catch (err) {
       console.warn("Supabase createTicket falló, guardando en localStorage:", err);
     }
   }
 
+  // Fallback a localStorage si Supabase falla
   const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
   saveLocal(TICKETS_KEY, [enriched, ...current]);
 }
@@ -116,7 +122,13 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
   if (hasSupabaseEnv && supabase) {
     try {
-      const { error } = await supabase.from("tickets").update(payload).eq("id", id);
+      // Filtrar solo campos que existen en la tabla de Supabase
+      const validFields: (keyof Ticket)[] = ['ticket_type', 'title', 'description', 'address', 'status', 'priority', 'scheduled_date', 'technician_id'];
+      const filteredPayload = Object.fromEntries(
+        Object.entries(payload).filter(([key]) => validFields.includes(key as keyof Ticket))
+      );
+      
+      const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
       if (!error) {
         return;
       }
