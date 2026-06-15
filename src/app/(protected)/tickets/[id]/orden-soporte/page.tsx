@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAppContext } from "@/context/AppContext";
 import { DocumentUploader, DocumentFile } from "@/components/DocumentUploader";
+import { WorkPhotoCapture } from "@/components/WorkPhotoCapture";
 const ZOHO_URL =
   "https://forms.zohopublic.com/virtualoffice12892/form/OrdendeSoporte/formperma/dvHAoHck2qvyQ8lww42gPBGtdn5T_xvx0896QCrQbrw/htmlRecords/submit";
 
@@ -201,6 +202,11 @@ export default function OrdenSoportePage() {
   const [submitted, setSubmitted] = useState(false);
   const [ratingError, setRatingError] = useState(false);
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
+  const [photoData, setPhotoData] = useState<{
+    photo: string;
+    gps?: { lat: number; lng: number; accuracy?: number };
+    timestamp: string;
+  } | null>(null);
 
   if (!ticket) {
     return <section className="panel">Ticket no encontrado.</section>;
@@ -264,7 +270,15 @@ export default function OrdenSoportePage() {
       recibe_cargo: g("SingleLine5"),
       rating: parseInt(rating, 10),
       razon_calificacion: g("MultiLine3"),
-      documents: documents, // Incluir documentos
+      documents: documents,
+      // ✨ NUEVO: Foto con ubicación GPS (solo si fue capturada)
+      ...(photoData && {
+        work_photo: {
+          photo: photoData.photo,
+          gps: photoData.gps,
+          timestamp: photoData.timestamp,
+        }
+      })
     };
 
     // Guardar en Supabase/localStorage (fire-and-forget - el form continúa a Zoho)
@@ -518,29 +532,6 @@ export default function OrdenSoportePage() {
             </label>
           </div>
 
-          <label className="full">
-            Foto del trabajo realizado
-            <div
-              style={{
-                border: "1.5px dashed var(--line)",
-                borderRadius: "var(--r-md)",
-                padding: "0.75rem",
-                background: "var(--surface-2)",
-                marginTop: "0.25rem",
-              }}
-            >
-              <input
-                type="file"
-                name="FileUpload"
-                accept="image/*"
-                style={{ width: "100%", fontSize: "0.88rem" }}
-              />
-              <p style={{ margin: "0.4rem 0 0", fontSize: "0.72rem", color: "var(--muted)" }}>
-                Agregue una imagen para evidenciar los trabajos realizados (opcional)
-              </p>
-            </div>
-          </label>
-
           <label>
             Nombre Supervisor Soporte ZeroQ <span style={{ color: "var(--danger)" }}>*</span>
             <input
@@ -632,14 +623,38 @@ export default function OrdenSoportePage() {
       </article>
 
       {/* ══════════════════════════════════════════════ */}
-      {/* SECCIÓN 5: CARGA DE DOCUMENTOS                */}
+      {/* SECCIÓN 5: CARGA DE DOCUMENTOS Y EVIDENCIA    */}
       {/* ══════════════════════════════════════════════ */}
       <article className="panel">
         <SectionTitle>📎 Documentación del Trabajo</SectionTitle>
-        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
-          Cargue evidencia fotográfica, screenshots, comprobantes o cualquier documento que respalde el trabajo realizado.
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+          Capture fotos del trabajo realizado con ubicación GPS y/o cargue documentos adicionales como screenshots, comprobantes o evidencia que respalde el trabajo.
         </p>
-        <DocumentUploader documents={documents} onDocumentsChange={setDocuments} />
+
+        {/* ─── Foto con GPS ─── */}
+        <div style={{ marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--line)" }}>
+          <h4 style={{ margin: "0 0 0.75rem", fontSize: "0.88rem", fontWeight: 600, color: "var(--ink)" }}>
+            📸 Foto del Trabajo Realizado
+          </h4>
+          <p style={{ margin: "0 0 1rem", fontSize: "0.78rem", color: "var(--muted)" }}>
+            Capture una foto en vivo con ubicación GPS automática (opcional)
+          </p>
+          <WorkPhotoCapture
+            onPhotoCapture={setPhotoData}
+            onPhotoClear={() => setPhotoData(null)}
+          />
+        </div>
+
+        {/* ─── Documentos y Más Imágenes ─── */}
+        <div>
+          <h4 style={{ margin: "0 0 0.75rem", fontSize: "0.88rem", fontWeight: 600, color: "var(--ink)" }}>
+            📁 Documentos e Imágenes Adicionales
+          </h4>
+          <p style={{ margin: "0 0 1rem", fontSize: "0.78rem", color: "var(--muted)" }}>
+            Cargue documentos, screenshots o fotos adicionales (opcional)
+          </p>
+          <DocumentUploader documents={documents} onDocumentsChange={setDocuments} />
+        </div>
       </article>
 
       {/* ── Botones ── */}

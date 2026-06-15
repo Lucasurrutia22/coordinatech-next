@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, ClipboardCheck, Clock, Edit2, MapPin, Play, RefreshCw, Upload, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -88,7 +88,8 @@ function getSLA(scheduledDate: string, status: TicketStatus) {
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { tickets, technicians, user, editTicket, incompleteReports, addIncompleteReport } = useAppContext();
+  const router = useRouter();
+  const { tickets, technicians, user, editTicket, incompleteReports, addIncompleteReport, refreshData } = useAppContext();
 
   // ── Modal "No completado" — estado ──────────────────────
   const [showNCModal,  setShowNCModal]  = useState(false);
@@ -135,27 +136,38 @@ export default function TicketDetailPage() {
     setNcError("");
     setNcSubmitting(true);
 
-    // 1. Guardar el reporte de evidencia (best-effort, no bloquea el cierre)
     try {
-      await addIncompleteReport({
-        ticket_id:  ticket.id,
-        tech_id:    user!.id,
-        tech_name:  user!.name,
-        reason:     ncReason.trim(),
-        photo_data: ncPhoto,
-      });
-    } catch (err) {
-      console.warn("No se pudo guardar el reporte de evidencia:", err);
-    }
+      // 1. Guardar el reporte de evidencia (best-effort)
+      try {
+        await addIncompleteReport({
+          ticket_id:  ticket.id,
+          tech_id:    user!.id,
+          tech_name:  user!.name,
+          reason:     ncReason.trim(),
+          photo_data: ncPhoto,
+        });
+      } catch (err) {
+        console.warn("No se pudo guardar el reporte de evidencia:", err);
+      }
 
-    // 2. Cambiar el estado del ticket — operación principal, siempre se ejecuta
-    try {
-      await editTicket(ticket.id, { status: "not_completed" });
+      // 2. Actualizar el ticket a "not_completed" y limpiar técnico
+      await editTicket(ticket.id, { 
+        status: "not_completed",
+        technician_id: "" // Limpiar para reasignación
+      });
+
+      // 3. Cerrar modal inmediatamente
       setShowNCModal(false);
+      setNcSubmitting(false);
+      
+      // 4. Redirigir a /tickets después de 800ms para que se actualice la BD
+      setTimeout(() => {
+        router.push("/tickets");
+      }, 800);
+      
     } catch (err) {
-      console.error("Error al actualizar estado del ticket:", err);
+      console.error("Error al marcar como no completado:", err);
       setNcError("No se pudo actualizar el ticket. Intenta nuevamente.");
-    } finally {
       setNcSubmitting(false);
     }
   };

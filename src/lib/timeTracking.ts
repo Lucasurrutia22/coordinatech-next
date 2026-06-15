@@ -184,6 +184,8 @@ export async function completeWorkTimer(
       work_ended_at: endTime,
       status: finalStatus,
       completion_type: completionType,
+      // Si es no completado, limpiar asignación para que esté disponible para reasignar
+      ...(completionType === 'not_completed' && { technician_id: '' }),
     })
     .eq('id', ticketId);
 

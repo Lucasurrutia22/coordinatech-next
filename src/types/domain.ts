@@ -101,4 +101,14 @@ export interface WorkOrder {
     uploadedAt: string;
     uploaded_at: string;
   }>;
+  // ✨ NUEVO: Foto del trabajo realizado con ubicación GPS
+  work_photo?: {
+    photo: string; // base64 data URL
+    gps?: {
+      lat: number;
+      lng: number;
+      accuracy?: number;
+    };
+    timestamp: string; // ISO 8601
+  };
 }

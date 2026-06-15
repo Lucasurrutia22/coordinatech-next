@@ -39,7 +39,7 @@ export default function NewTicketPage() {
       title,
       description,
       address,
-      status: technicianId ? "assigned" : "pending", // Cambiar a "assigned" si hay técnico
+      status: "pending",
       priority,
       scheduled_date: new Date(scheduledDate).toISOString(),
       technician_id: technicianId, // Puede ser vacío

@@ -236,44 +236,24 @@ export function WorkTimer({
             </button>
           )}
           {state === 'running' && (
-            <>
-              <button
-                onClick={handlePauseClick}
-                disabled={loading}
-                className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
-              >
-                <Pause className="w-4 h-4" />
-                Pausar
-              </button>
-              <button
-                onClick={handleCompleteClick}
-                disabled={loading}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
-              >
-                <StopCircle className="w-4 h-4" />
-                Finalizar
-              </button>
-            </>
+            <button
+              onClick={handlePauseClick}
+              disabled={loading}
+              className="bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
+            >
+              <Pause className="w-4 h-4" />
+              Pausar
+            </button>
           )}
           {state === 'paused' && (
-            <>
-              <button
-                onClick={handleResume}
-                disabled={loading}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Reanudar
-              </button>
-              <button
-                onClick={handleCompleteClick}
-                disabled={loading}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
-              >
-                <StopCircle className="w-4 h-4" />
-                Finalizar
-              </button>
-            </>
+            <button
+              onClick={handleResume}
+              disabled={loading}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Reanudar
+            </button>
           )}
         </div>
 
@@ -400,45 +380,25 @@ export function WorkTimer({
         )}
 
         {state === 'running' && (
-          <>
-            <button
-              onClick={handlePauseClick}
-              disabled={loading}
-              className="flex-1 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
-            >
-              <Pause className="w-6 h-6" />
-              Pausar
-            </button>
-            <button
-              onClick={handleCompleteClick}
-              disabled={loading}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
-            >
-              <StopCircle className="w-6 h-6" />
-              Finalizar
-            </button>
-          </>
+          <button
+            onClick={handlePauseClick}
+            disabled={loading}
+            className="flex-1 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            <Pause className="w-6 h-6" />
+            Pausar
+          </button>
         )}
 
         {state === 'paused' && (
-          <>
-            <button
-              onClick={handleResume}
-              disabled={loading}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
-            >
-              <Play className="w-6 h-6" />
-              Reanudar
-            </button>
-            <button
-              onClick={handleCompleteClick}
-              disabled={loading}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
-            >
-              <StopCircle className="w-6 h-6" />
-              Finalizar
-            </button>
-          </>
+          <button
+            onClick={handleResume}
+            disabled={loading}
+            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            <Play className="w-6 h-6" />
+            Reanudar
+          </button>
         )}
       </div>
 
