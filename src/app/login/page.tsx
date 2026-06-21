@@ -202,13 +202,6 @@ export default function LoginPage() {
                 <p>¿No tiene una cuenta? <a href="#" className="stitch-link">Contacte a Soporte</a></p>
               </div>
 
-              {/* Demo credentials hint */}
-              <div className="hint-box">
-                <p className="hint-label">Credenciales demo</p>
-                <p>Admin: maria.gonzalez@company.com / admin123</p>
-                <p>Técnico: juan.perez@company.com / tech123</p>
-                <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#718096" }}>2FA: 123123</p>
-              </div>
             </>
           ) : (
             <TwoFactorAuth 
