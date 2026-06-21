@@ -72,6 +72,10 @@ export async function getTickets(): Promise<Ticket[]> {
   // localStorage es el source-of-truth para datos locales
   const localTickets = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
   
+  console.log("🔧 DEBUG getTickets(): Cargado localTickets con", localTickets.length, "tickets");
+  const st008 = localTickets.find(t => t.id === 'ST-008');
+  if (st008) console.log("🔧 DEBUG getTickets(): ST-008 status en localStorage =", st008.status);
+  
   // Si tenemos tickets en localStorage y Supabase no está disponible, usar localStorage
   if (!hasSupabaseEnv || !supabase) {
     return localTickets.map(enrichTicketWithSLA);
@@ -94,6 +98,10 @@ export async function getTickets(): Promise<Ticket[]> {
       // Enriquecer datos de Supabase
       const supabaseTickets = (data as Record<string, unknown>[]).map(normalizeTicket);
       
+      console.log("🔧 DEBUG getTickets(): Cargado de Supabase", supabaseTickets.length, "tickets");
+      const st008sup = supabaseTickets.find(t => t.id === 'ST-008');
+      if (st008sup) console.log("🔧 DEBUG getTickets(): ST-008 status en Supabase =", st008sup.status);
+      
       // IMPORTANTE: Solo actualizar localStorage si hay tickets NEW en Supabase
       // (nunca sobrescribir cambios locales)
       const merged: Ticket[] = [];
@@ -109,11 +117,15 @@ export async function getTickets(): Promise<Ticket[]> {
         }
       });
 
+      console.log("🔧 DEBUG getTickets(): Merged tiene", merged.length, "tickets");
+      
       // Solo actualizar localStorage si hay tickets nuevos
       const hasMergeChanges = merged.length !== localTickets.length;
       if (hasMergeChanges) {
-        console.log("getTickets: Actualizando localStorage con tickets nuevos de Supabase");
+        console.log("🔧 DEBUG getTickets(): Actualizando localStorage con tickets nuevos de Supabase");
         saveLocal(TICKETS_KEY, merged);
+      } else {
+        console.log("🔧 DEBUG getTickets(): NO actualizando localStorage (sin cambios)");
       }
       
       return merged.map(enrichTicketWithSLA);
