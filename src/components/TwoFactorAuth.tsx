@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight, Mail, CheckCircle2 } from "lucide-react";
 
 interface TwoFactorAuthProps {
   onVerify: (code: string) => Promise<void>;
@@ -128,25 +128,34 @@ export function TwoFactorAuth({ onVerify, onCancel, email, loading = false }: Tw
         <h2 style={{
           fontSize: "1.5rem",
           fontWeight: "600",
-          marginBottom: "0.5rem",
+          marginBottom: "1rem",
           color: "#1a202c",
         }}>
           Verificación de dos factores
         </h2>
-        <p style={{
-          fontSize: "0.95rem",
-          color: "#718096",
-          marginBottom: "0.25rem",
+
+        {/* Notificación profesional de código enviado */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          padding: "1rem",
+          marginBottom: "1.5rem",
+          background: "#f0fdf4",
+          border: "1px solid #86efac",
+          borderRadius: "8px",
+          color: "#166534",
         }}>
-          Hemos enviado un código de 6 dígitos a
-        </p>
-        <p style={{
-          fontSize: "0.95rem",
-          fontWeight: "500",
-          color: "#2d3748",
-        }}>
-          {email}
-        </p>
+          <CheckCircle2 size={20} style={{ flexShrink: 0, color: "#22c55e" }} />
+          <div style={{ textAlign: "left" }}>
+            <p style={{ margin: "0 0 0.25rem 0", fontSize: "0.9rem", fontWeight: "600" }}>
+              Código enviado
+            </p>
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "#15803d" }}>
+              Hemos enviado un código de 6 dígitos a <strong>{email}</strong>
+            </p>
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1.5rem" }}>
@@ -210,13 +219,21 @@ export function TwoFactorAuth({ onVerify, onCancel, email, loading = false }: Tw
         )}
 
         {/* Instructions */}
-        <p style={{
-          fontSize: "0.85rem",
-          color: "#718096",
-          lineHeight: "1.5",
+        <div style={{
+          background: "#f8f9fa",
+          padding: "0.75rem",
+          borderRadius: "6px",
+          border: "1px solid #e2e8f0",
         }}>
-          Ingresa los 6 dígitos del código que recibiste
-        </p>
+          <p style={{
+            fontSize: "0.85rem",
+            color: "#475569",
+            lineHeight: "1.5",
+            margin: 0,
+          }}>
+            ✓ Revisa tu correo electrónico y copia el código de 6 dígitos para completar la verificación
+          </p>
+        </div>
 
         {/* Submit button */}
         <button
