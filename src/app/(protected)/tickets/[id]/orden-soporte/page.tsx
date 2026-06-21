@@ -9,6 +9,7 @@ import { es } from "date-fns/locale";
 import { useAppContext } from "@/context/AppContext";
 import { DocumentUploader, DocumentFile } from "@/components/DocumentUploader";
 import { WorkPhotoCapture } from "@/components/WorkPhotoCapture";
+import { MapViewer } from "@/components/MapViewer";
 const ZOHO_URL =
   "https://forms.zohopublic.com/virtualoffice12892/form/OrdendeSoporte/formperma/dvHAoHck2qvyQ8lww42gPBGtdn5T_xvx0896QCrQbrw/htmlRecords/submit";
 
@@ -643,6 +644,22 @@ export default function OrdenSoportePage() {
             onPhotoCapture={setPhotoData}
             onPhotoClear={() => setPhotoData(null)}
           />
+          {photoData?.gps && (
+            <div style={{ marginTop: "1rem" }}>
+              <p style={{ margin: "0 0 0.75rem", fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600 }}>
+                📍 Ubicación capturada:
+              </p>
+              <MapViewer
+                locations={[{
+                  lat: photoData.gps.lat,
+                  lng: photoData.gps.lng,
+                  label: `Capturado: ${new Date(photoData.timestamp).toLocaleTimeString('es-CL')}`,
+                  timestamp: new Date(photoData.timestamp),
+                }]}
+                height="300px"
+              />
+            </div>
+          )}
         </div>
 
         {/* ─── Documentos y Más Imágenes ─── */}
