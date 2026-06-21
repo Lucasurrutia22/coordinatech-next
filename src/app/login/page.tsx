@@ -11,7 +11,7 @@ import { UserRole } from "@/types/domain";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAppContext();
+  const { login, technicians } = useAppContext();
   const [email, setEmail] = useState("juan.perez@company.com");
   const [password, setPassword] = useState("tech123");
   const [showPassword, setShowPassword] = useState(false);
@@ -96,7 +96,7 @@ export default function LoginPage() {
           <Users size={20} />
           <div>
             <p className="stat-label">Técnicos Activos</p>
-            <p className="stat-value">1,284</p>
+            <p className="stat-value">{technicians.filter(t => t.active).length.toLocaleString('es-ES')}</p>
           </div>
         </div>
 
