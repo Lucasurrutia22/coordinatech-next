@@ -10,16 +10,20 @@ El sistema de SLA (Service Level Agreement) ha sido rediseñado para proporciona
 
 ## 🎯 Configuración de SLA
 
-### Tiempos por Prioridad
+### Tiempos por Tipo de Ticket
 
 ```
-PRIORIDAD     | VENTANA TIEMPO | ALERTA (Warning) | CRÍTICO | VENCIMIENTO
-─────────────────────────────────────────────────────────────────────
-🔴 CRÍTICA    | 4 horas        | 25% (1h)         | 10%    | 30min
-🟠 ALTA       | 24 horas       | 25% (6h)         | 10%    | 2.4h
-🟡 MEDIA      | 48 horas       | 25% (12h)        | 10%    | 4.8h
-🟢 BAJA       | 72 horas       | 25% (18h)        | 10%    | 7.2h
+TIPO TICKET     | CÓDIGO | TIEMPO MÁXIMO | ALERTA (50%) | CRÍTICO (25%)
+────────────────────────────────────────────────────────────────────────
+Soporte Técnico | ST     | 2 horas       | 1 hora       | 30 minutos
+Instalación     | INS    | 5 horas       | 2.5 horas    | 1.25 horas
+Retiro          | RT     | 3 horas       | 1.5 horas    | 45 minutos
 ```
+
+**Significado:**
+- **Tiempo Máximo**: Plazo total desde creación del ticket
+- **Alerta (Warning)**: Se activa cuando queda 50% del tiempo
+- **Crítico**: Se activa cuando queda 25% del tiempo o menos
 
 ### Estados SLA
 
@@ -251,9 +255,9 @@ export function MyTicketsPage() {
 import { calculateSLAMetrics } from "@/lib/slaMetrics";
 
 const ticket = {
-  id: "1",
+  id: "ST-001",
   title: "Reparar servidor",
-  priority: "high",
+  ticket_type: "support",    // ST = 2 horas máximo
   created_at: "2026-06-21T10:00:00",
   status: "in_progress"
 };
@@ -263,6 +267,24 @@ const metrics = calculateSLAMetrics(ticket);
 console.log(`Estado: ${metrics.level}`);
 console.log(`Quedan: ${metrics.timeRemaining.hours}h ${metrics.timeRemaining.minutes}m`);
 console.log(`Color: ${metrics.displayColor}`);
+console.log(`Tipo: ST - Máximo 2 horas desde creación`);
+```
+
+**Ejemplos por tipo:**
+
+```typescript
+// Support Técnico - Máximo 2 horas
+const supportTicket = { ticket_type: "support", ... };
+// Si lleva 45 min: 75% restante → 🟢 OK
+// Si lleva 1h 30min: 25% restante → 🔴 CRITICAL (50% del tiempo)
+
+// Instalación - Máximo 5 horas
+const installTicket = { ticket_type: "installation", ... };
+// Si lleva 2h 30min: 50% restante → 🟡 WARNING
+
+// Retiro - Máximo 3 horas
+const removalTicket = { ticket_type: "removal", ... };
+// Si lleva 2h 15min: 25% restante → 🔴 CRITICAL
 ```
 
 ### Obtener tickets críticos

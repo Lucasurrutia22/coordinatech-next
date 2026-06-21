@@ -1,24 +1,27 @@
-import { Ticket, TicketPriority, SLA_HOURS } from "@/types/domain";
+import { Ticket, TicketType } from "@/types/domain";
 
 /**
- * Configuración profesional de SLA
- * Basada en estándares de industria
+ * Configuración profesional de SLA por TIPO DE TICKET
+ * Definido según tiempos de demora máxima establecidos
  */
 export const SLA_CONFIG = {
-  high: {
-    timeWindow: 4 * 60, // 4 horas en minutos
-    warning: 25, // % de tiempo restante para alerta
-    critical: 10, // % de tiempo restante para crítico
+  support: {
+    timeWindow: 2 * 60, // ST: 2 horas máximo
+    warning: 50, // % de tiempo restante para alerta (50% = 1 hora)
+    critical: 25, // % de tiempo restante para crítico (25% = 30 minutos)
+    label: "Soporte Técnico",
   },
-  medium: {
-    timeWindow: 24 * 60, // 24 horas
-    warning: 25,
-    critical: 10,
+  installation: {
+    timeWindow: 5 * 60, // INS: 5 horas máximo
+    warning: 50, // % de tiempo restante para alerta (50% = 2.5 horas)
+    critical: 25, // % de tiempo restante para crítico (25% = 1.25 horas)
+    label: "Instalación",
   },
-  low: {
-    timeWindow: 48 * 60, // 48 horas
-    warning: 25,
-    critical: 10,
+  removal: {
+    timeWindow: 3 * 60, // RT: 3 horas máximo
+    warning: 50, // % de tiempo restante para alerta (50% = 1.5 horas)
+    critical: 25, // % de tiempo restante para crítico (25% = 45 minutos)
+    label: "Retiro",
   },
 };
 
@@ -61,8 +64,8 @@ export function calculateSLAMetrics(ticket: Ticket): SLAMetrics {
     };
   }
 
-  // Obtener configuración según prioridad
-  const config = SLA_CONFIG[ticket.priority as TicketPriority];
+  // Obtener configuración según TIPO DE TICKET
+  const config = SLA_CONFIG[ticket.ticket_type as TicketType];
   
   // Calcular deadline
   const createdAt = new Date(ticket.created_at || now);
