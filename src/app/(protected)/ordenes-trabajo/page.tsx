@@ -71,7 +71,7 @@ function WorkOrderRow({ order, ticketTitle, typeMeta }: {
         </td>
         <td>
           <p style={{ margin: 0, fontWeight: 500, fontSize: "0.86rem" }}>{ticketTitle}</p>
-          <p className="muted" style={{ fontSize: "0.73rem", margin: 0 }}>{order.cliente_local} â€” {order.cliente_direccion}</p>
+          <p className="muted" style={{ fontSize: "0.73rem", margin: 0 }}>{order.cliente_local} — {order.cliente_direccion}</p>
         </td>
         <td className="table-hide-xs">
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -108,11 +108,11 @@ function WorkOrderRow({ order, ticketTitle, typeMeta }: {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div style={{ background: "var(--surface)", borderRadius: "var(--r-sm)", padding: "0.75rem 1rem", border: "1px solid var(--line)" }}>
-                  <p className="eyebrow" style={{ marginBottom: "0.35rem" }}>ProblemÃ¡tica</p>
+                  <p className="eyebrow" style={{ marginBottom: "0.35rem" }}>Problemática</p>
                   <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.5 }}>{order.problematica}</p>
                 </div>
                 <div style={{ background: "var(--surface)", borderRadius: "var(--r-sm)", padding: "0.75rem 1rem", border: "1px solid var(--line)" }}>
-                  <p className="eyebrow" style={{ marginBottom: "0.35rem" }}>SoluciÃ³n aplicada</p>
+                  <p className="eyebrow" style={{ marginBottom: "0.35rem" }}>Solución aplicada</p>
                   <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.5 }}>{order.solucion}</p>
                 </div>
               </div>
@@ -123,10 +123,10 @@ function WorkOrderRow({ order, ticketTitle, typeMeta }: {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
                   <span style={{ padding: "0.3rem 0.65rem", borderRadius: "var(--r-sm)", fontSize: "0.74rem", fontWeight: 600, background: order.reemplazo_equipo === "Si" ? "#fef2f2" : "#f0fdf4", color: order.reemplazo_equipo === "Si" ? "#b91c1c" : "#15803d", border: `1px solid ${order.reemplazo_equipo === "Si" ? "#fca5a5" : "#86efac"}`, whiteSpace: "nowrap" }}>
-                    {order.reemplazo_equipo === "Si" ? "âš  ReemplazÃ³ equipo" : "âœ“ Sin reemplazo"}
+                    {order.reemplazo_equipo === "Si" ? "⚠ Reemplazó equipo" : "✓ Sin reemplazo"}
                   </span>
                   {order.retira_equipo && (
-                    <span style={{ padding: "0.3rem 0.65rem", borderRadius: "var(--r-sm)", fontSize: "0.74rem", fontWeight: 600, background: "#fffbeb", color: "#b45309", border: "1px solid #fcd34d", whiteSpace: "nowrap" }}>â¬† Retira equipo</span>
+                    <span style={{ padding: "0.3rem 0.65rem", borderRadius: "var(--r-sm)", fontSize: "0.74rem", fontWeight: 600, background: "#fffbeb", color: "#b45309", border: "1px solid #fcd34d", whiteSpace: "nowrap" }}>⬆ Retira equipo</span>
                   )}
                   {order.supervisor_nombre && (
                     <div style={{ padding: "0.3rem 0.65rem", borderRadius: "var(--r-sm)", fontSize: "0.72rem", background: "var(--surface)", border: "1px solid var(--line)", color: "var(--muted)" }}>
@@ -169,9 +169,9 @@ const STATUS_FILTERS = [
 type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 const TYPE_FILTERS: { value: "all" | TicketType; label: string }[] = [
   { value: "all",         label: "Todos los tipos" },
-  { value: "support",     label: "ST â€” Soporte"     },
-  { value: "installation",label: "INS â€” InstalaciÃ³n" },
-  { value: "removal",     label: "RT â€” Retiro"      },
+  { value: "support",     label: "ST — Soporte"     },
+  { value: "installation",label: "INS — Instalación" },
+  { value: "removal",     label: "RT — Retiro"      },
 ];
 
 export default function OrdenesTrabajoPage() {
@@ -236,9 +236,9 @@ export default function OrdenesTrabajoPage() {
       {/* â”€â”€ Header â”€â”€ */}
       <div className="row-between" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
         <div>
-          <h2 style={{ marginBottom: 0 }}>Ã“rdenes de Trabajo</h2>
+          <h2 style={{ marginBottom: 0 }}>Órdenes de Trabajo</h2>
           <p className="muted" style={{ fontSize: "0.82rem" }}>
-            {workOrders.length} orden{workOrders.length !== 1 ? "es" : ""} completada{workOrders.length !== 1 ? "s" : ""} Â· {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} en sistema
+            {workOrders.length} orden{workOrders.length !== 1 ? "es" : ""} completada{workOrders.length !== 1 ? "s" : ""} · {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} en sistema
           </p>
         </div>
         <Link href="/tickets/new" className="primary-btn">
@@ -261,7 +261,7 @@ export default function OrdenesTrabajoPage() {
               <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.7rem", color: meta.color, opacity: 0.8 }}>
                 <span>Completados: {completed}</span>
                 <span style={{ fontWeight: orders > 0 ? 700 : 400, display: "flex", alignItems: "center", gap: 3 }}>
-                  <CheckCircle2 size={9} /> Ã“rdenes: {orders}
+                  <CheckCircle2 size={9} /> Órdenes: {orders}
                 </span>
               </div>
             </div>
@@ -272,7 +272,7 @@ export default function OrdenesTrabajoPage() {
       {/* â”€â”€ Tabs â”€â”€ */}
       <div style={{ display: "flex", borderBottom: "1px solid var(--line)" }}>
         {[
-          { key: "ordenes", label: "Ã“rdenes completadas", icon: FileText,     count: workOrders.length },
+          { key: "ordenes", label: "Órdenes completadas", icon: FileText,     count: workOrders.length },
           { key: "tickets", label: "Todos los tickets",   icon: ClipboardList, count: tickets.length   },
         ].map(({ key, label, icon: Icon, count }) => (
           <button key={key} type="button" onClick={() => setTab(key as "ordenes" | "tickets")}
@@ -289,7 +289,7 @@ export default function OrdenesTrabajoPage() {
           <div style={{ position: "relative" }}>
             <Search size={14} style={{ position: "absolute", left: "0.65rem", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
             <input value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder={tab === "ordenes" ? "Buscar por ID ticket, tÃ©cnico, cliente, localâ€¦" : "Buscar por ID (ST-001), tÃ­tulo, direcciÃ³n o tÃ©cnicoâ€¦"}
+              placeholder={tab === "ordenes" ? "Buscar por ID ticket, técnico, cliente, local..." : "Buscar por ID (ST-001), título, dirección o técnico..."}
               style={{ width: "100%", boxSizing: "border-box", padding: "0.5rem 2.25rem 0.5rem 2rem", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", fontSize: "0.84rem", background: "var(--surface)", color: "var(--ink)" }} />
             {query && (
               <button type="button" onClick={clearQuery} style={{ position: "absolute", right: "0.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 0 }}>
@@ -317,8 +317,8 @@ export default function OrdenesTrabajoPage() {
                 <FileText size={36} color="var(--muted)" style={{ marginBottom: "0.75rem", display: "block", margin: "0 auto 0.75rem" }} />
                 <p className="muted" style={{ marginBottom: "0.5rem" }}>
                   {workOrders.length === 0
-                    ? "AÃºn no se han enviado Ã³rdenes. AparecerÃ¡n aquÃ­ cuando un tÃ©cnico complete el formulario de soporte."
-                    : "No se encontraron Ã³rdenes con los filtros actuales."}
+                    ? "Aún no se han enviado órdenes. Aparecerán aquí cuando un técnico complete el formulario de soporte."
+                    : "No se encontraron órdenes con los filtros actuales."}
                 </p>
                 {(query || typeFilter !== "all") && (
                   <button type="button" className="outline-btn" style={{ fontSize: "0.8rem" }} onClick={() => { clearQuery(); setTypeFilter("all"); }}>
@@ -331,9 +331,9 @@ export default function OrdenesTrabajoPage() {
                 <thead>
                   <tr>
                     <th>Ticket</th>
-                    <th>TÃ­tulo / Local</th>
-                    <th className="table-hide-xs">TÃ©cnico</th>
-                    <th className="table-hide-xs">CalificaciÃ³n</th>
+                    <th>Título / Local</th>
+                    <th className="table-hide-xs">Técnico</th>
+                    <th className="table-hide-xs">Calificación</th>
                     <th className="table-hide-xs">Enviado</th>
                     <th></th>
                   </tr>
@@ -359,8 +359,8 @@ export default function OrdenesTrabajoPage() {
               <thead>
                 <tr>
                   <th>ID Orden</th>
-                  <th>TÃ­tulo / DirecciÃ³n</th>
-                  <th className="table-hide-xs">TÃ©cnico</th>
+                  <th>Título / Dirección</th>
+                  <th className="table-hide-xs">Técnico</th>
                   <th>Estado</th>
                   <th className="table-hide-xs">Prioridad</th>
                   <th className="table-hide-xs">SLA</th>
@@ -402,13 +402,13 @@ export default function OrdenesTrabajoPage() {
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "0.18rem 0.5rem", borderRadius: "var(--r-sm)", background: sla.bg, color: sla.color, border: `1px solid ${sla.border}`, fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap" }}>
                             <Clock size={10} /> {sla.label}
                           </span>
-                        ) : <span className="muted" style={{ fontSize: "0.74rem" }}>â€”</span>}
+                        ) : <span className="muted" style={{ fontSize: "0.74rem" }}>—</span>}
                       </td>
                       <td className="table-hide-xs" style={{ color: "var(--muted)", fontSize: "0.78rem" }}>
                         {format(new Date(ticket.scheduled_date), "dd MMM yyyy HH:mm", { locale: es })}
                       </td>
                       <td>
-                        <Link href={`/tickets/${ticket.id}`} style={{ fontSize: "0.8rem", color: "var(--brand)", fontWeight: 500, textDecoration: "none" }}>Ver â†’</Link>
+                        <Link href={`/tickets/${ticket.id}`} style={{ fontSize: "0.8rem", color: "var(--brand)", fontWeight: 500, textDecoration: "none" }}>Ver →</Link>
                       </td>
                     </tr>
                   );
