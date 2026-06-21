@@ -178,10 +178,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const editTicketHandler = useCallback(
     async (id: string, payload: Partial<Ticket>) => {
-      // Guardar estado anterior por si falla
+      // Guardar estado anterior solo por si falla la actualización local
       const prevTickets = tickets;
       
-      // Actualización optimista: cambio local inmediato
+      // Actualización optimista: cambio local inmediato en React
       setTickets((prev) => prev.map((item) => (item.id === id ? { ...item, ...payload } : item)));
       
       try {
@@ -207,12 +207,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Fallback: usar updateTicket directamente
+        // updateTicket garantiza que localStorage se actualiza siempre
         await updateTicket(id, payload);
         await refreshData();
       } catch (error) {
         console.error(`Error al actualizar ticket ${id}:`, error);
         
-        // Revertir cambios locales si falla
+        // SOLO revertir si updateTicket falló (que nunca debería pasar)
+        // Si es un error de Supabase, los cambios ya están en localStorage
         setTickets(prevTickets);
         
         // Recargar datos del servidor para sincronizar

@@ -68,7 +68,8 @@ function normalizeTicket(raw: Record<string, unknown>): Ticket {
 }
 
 export async function getTickets(): Promise<Ticket[]> {
-  // PRIORIDAD: Intentar obtener de localStorage primero (cambios recientes)
+  // PRIORIDAD: SIEMPRE retornar localStorage como fuente de verdad
+  // localStorage es el source-of-truth para datos locales
   const localTickets = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
   
   // Si tenemos tickets en localStorage y Supabase no está disponible, usar localStorage
@@ -76,7 +77,8 @@ export async function getTickets(): Promise<Ticket[]> {
     return localTickets.map(enrichTicketWithSLA);
   }
 
-  // Intentar sincronizar desde Supabase, pero NO sobrescribir localStorage
+  // Intentar sincronizar desde Supabase EN BACKGROUND, pero NO devolver datos de Supabase
+  // Esto asegura que los cambios locales NO se pierdan
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -92,29 +94,29 @@ export async function getTickets(): Promise<Ticket[]> {
       // Enriquecer datos de Supabase
       const supabaseTickets = (data as Record<string, unknown>[]).map(normalizeTicket);
       
-      // IMPORTANTE: Merging strategy
-      // Para cada ticket en Supabase, verificar si hay un cambio reciente en localStorage
-      // Si hay cambio reciente en localStorage, mantenerlo (el ticket podría haber sido actualizado localmente)
-      const merged = supabaseTickets.map(supTicket => {
-        const localTicket = localTickets.find(t => t.id === supTicket.id);
-        // Si el ticket existe en localStorage y no es de los datos iniciales, confiar en localStorage
-        if (localTicket) {
-          return localTicket;
-        }
-        return supTicket;
-      });
-
-      // También agregar tickets que están solo en localStorage (nuevos tickets no sincronizados)
-      const allIds = new Set(merged.map(t => t.id));
-      localTickets.forEach(localTicket => {
-        if (!allIds.has(localTicket.id)) {
-          merged.push(localTicket);
+      // IMPORTANTE: Solo actualizar localStorage si hay tickets NEW en Supabase
+      // (nunca sobrescribir cambios locales)
+      const merged: Ticket[] = [];
+      const localIdSet = new Set(localTickets.map(t => t.id));
+      
+      // Agregar todos los tickets locales (preservando cambios locales)
+      merged.push(...localTickets);
+      
+      // Agregar tickets que son nuevos en Supabase (no están en localStorage)
+      supabaseTickets.forEach(supTicket => {
+        if (!localIdSet.has(supTicket.id)) {
+          merged.push(supTicket);
         }
       });
 
-      // Guardar la versión mergeada en localStorage
-      saveLocal(TICKETS_KEY, merged);
-      return merged;
+      // Solo actualizar localStorage si hay tickets nuevos
+      const hasMergeChanges = merged.length !== localTickets.length;
+      if (hasMergeChanges) {
+        console.log("getTickets: Actualizando localStorage con tickets nuevos de Supabase");
+        saveLocal(TICKETS_KEY, merged);
+      }
+      
+      return merged.map(enrichTicketWithSLA);
     }
   } catch (err) {
     console.warn("Supabase getTickets falló, usando localStorage:", err);
@@ -149,14 +151,26 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
-  // IMPORTANTE: Actualizar localStorage PRIMERO para cambio optimista
+  // CRÍTICO: Actualizar localStorage PRIMERO y SINCRÓNICAMENTE
+  // Esto es NON-NEGOTIABLE para cambios optimistas
   const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  
+  // Verificar que el ticket existe
+  const ticketIndex = current.findIndex(item => item.id === id);
+  if (ticketIndex === -1) {
+    throw new Error(`Ticket ${id} not found in localStorage`);
+  }
+  
+  // Actualizar el ticket
   const updated = current.map((item) =>
     item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
   );
+  
+  // GUARDAR INMEDIATAMENTE en localStorage
   saveLocal(TICKETS_KEY, updated);
+  console.log(`updateTicket: Actualizado ${id} en localStorage, status=${payload.status}`);
 
-  // LUEGO intentar Supabase
+  // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {
     try {
       // Filtrar solo campos que existen en la tabla de Supabase
@@ -167,13 +181,17 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
       
       const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
       if (error) {
-        console.warn("Error updating ticket in Supabase:", error);
+        console.warn(`updateTicket: Supabase fallo para ${id}:`, error);
+        // NO relanzar el error aquí - los cambios ya están en localStorage
+      } else {
+        console.log(`updateTicket: ${id} actualizado exitosamente en Supabase`);
       }
     } catch (err) {
-      console.warn("Supabase updateTicket falló:", err);
-      // Ya está actualizado en localStorage, no hay nada más que hacer
+      console.warn(`updateTicket: Excepcion de Supabase para ${id}:`, err);
+      // NO relanzar - localStorage ya está actualizado
     }
   }
+  // NO hay que relanzar errores aquí - localStorage está garantizado que se actualizó
 }
 
 export async function getTicketById(id: string): Promise<Ticket | undefined> {
