@@ -5,7 +5,7 @@
 ### Autenticación
 - [x] **2FA (Two-Factor Authentication)**
   - 6 dígitos
-  - Código demo: 123123
+  - Código demo: [consultar con administrador]
   - Interfaz profesional con 6 casillas
   - Auto-advance entre campos
   - Soporte para paste

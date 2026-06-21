@@ -20,8 +20,8 @@ Reimplementacion de Coordinatech con stack moderno:
 
 ## Credenciales demo
 
-- Admin: `maria.gonzalez@company.com` / `admin123`
-- Tecnico: `juan.perez@company.com` / `tech123`
+> ⚠️ **NOTA DE SEGURIDAD**: Las credenciales de demostración NO deben estar visibles en documentación pública.
+> Para acceder al sistema, contacta con el administrador del proyecto.
 
 ## Setup rapido
 

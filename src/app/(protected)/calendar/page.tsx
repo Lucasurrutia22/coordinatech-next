@@ -37,7 +37,7 @@ function parseLocalDate(dateStr: string) {
 }
 
 export default function CalendarPage() {
-  const { tickets, technicians, user } = useAppContext();
+  const { tickets, technicians, user, getVisibleTickets, getAvailableTickets } = useAppContext();
   const [current, setCurrent]   = useState(new Date());
   const [selected, setSelected] = useState<Date | null>(null);
 
@@ -47,12 +47,16 @@ export default function CalendarPage() {
   const calEnd     = endOfWeek(monthEnd,     { weekStartsOn: 1 });
   const days       = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const ticketsInMonth  = tickets.filter((t) => isSameMonth(parseLocalDate(t.scheduled_date), current));
-  const ticketsForDay   = (day: Date) => tickets.filter((t) => isSameDay(parseLocalDate(t.scheduled_date), day));
-  const unassigned      = tickets.filter((t) => t.status === "pending");
+  // Para técnicos: mostrar solo sus tickets asignados. Para admin: todos los tickets
+  const displayTickets = user?.role === "tech" ? getVisibleTickets() : tickets;
+  
+  const ticketsInMonth  = displayTickets.filter((t) => isSameMonth(parseLocalDate(t.scheduled_date), current));
+  const ticketsForDay   = (day: Date) => displayTickets.filter((t) => isSameDay(parseLocalDate(t.scheduled_date), day));
+  // Unassigned: solo para admin, y solo tickets SIN técnico asignado
+  const unassigned      = user?.role === "admin" ? getAvailableTickets().filter((t) => t.status === "pending" && (!t.technician_id || t.technician_id === "")) : [];
   const today           = new Date();
 
-  const upcoming = [...tickets]
+  const upcoming = [...displayTickets]
     .filter((t) => parseLocalDate(t.scheduled_date) >= new Date(today.setHours(0, 0, 0, 0)))
     .sort((a, b) => parseLocalDate(a.scheduled_date).getTime() - parseLocalDate(b.scheduled_date).getTime())
     .slice(0, 8);
