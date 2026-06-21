@@ -68,31 +68,74 @@ function normalizeTicket(raw: Record<string, unknown>): Ticket {
 }
 
 export async function getTickets(): Promise<Ticket[]> {
-  if (hasSupabaseEnv && supabase) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const { data, error } = await supabase
-        .from("tickets")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      clearTimeout(timeoutId);
-
-      if (!error && data && data.length > 0) {
-        const normalized = (data as Record<string, unknown>[]).map(normalizeTicket);
-        saveLocal(TICKETS_KEY, normalized);
-        return normalized;
-      }
-    } catch (err) {
-      console.warn("Supabase getTickets falló, usando fallback:", err);
-    }
+  // PRIORIDAD: SIEMPRE retornar localStorage como fuente de verdad
+  // localStorage es el source-of-truth para datos locales
+  const localTickets = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  
+  console.log("🔧 DEBUG getTickets(): Cargado localTickets con", localTickets.length, "tickets");
+  const st008 = localTickets.find(t => t.id === 'ST-008');
+  if (st008) console.log("🔧 DEBUG getTickets(): ST-008 status en localStorage =", st008.status);
+  
+  // Si tenemos tickets en localStorage y Supabase no está disponible, usar localStorage
+  if (!hasSupabaseEnv || !supabase) {
+    return localTickets.map(enrichTicketWithSLA);
   }
 
-  // Fallback: combina localStorage con demoData enriquecido
-  const demo = demoTickets.map(enrichTicketWithSLA);
-  return loadLocal<Ticket[]>(TICKETS_KEY, demo);
+  // Intentar sincronizar desde Supabase EN BACKGROUND, pero NO devolver datos de Supabase
+  // Esto asegura que los cambios locales NO se pierdan
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    clearTimeout(timeoutId);
+
+    if (!error && data && data.length > 0) {
+      // Enriquecer datos de Supabase
+      const supabaseTickets = (data as Record<string, unknown>[]).map(normalizeTicket);
+      
+      console.log("🔧 DEBUG getTickets(): Cargado de Supabase", supabaseTickets.length, "tickets");
+      const st008sup = supabaseTickets.find(t => t.id === 'ST-008');
+      if (st008sup) console.log("🔧 DEBUG getTickets(): ST-008 status en Supabase =", st008sup.status);
+      
+      // IMPORTANTE: Solo actualizar localStorage si hay tickets NEW en Supabase
+      // (nunca sobrescribir cambios locales)
+      const merged: Ticket[] = [];
+      const localIdSet = new Set(localTickets.map(t => t.id));
+      
+      // Agregar todos los tickets locales (preservando cambios locales)
+      merged.push(...localTickets);
+      
+      // Agregar tickets que son nuevos en Supabase (no están en localStorage)
+      supabaseTickets.forEach(supTicket => {
+        if (!localIdSet.has(supTicket.id)) {
+          merged.push(supTicket);
+        }
+      });
+
+      console.log("🔧 DEBUG getTickets(): Merged tiene", merged.length, "tickets");
+      
+      // Solo actualizar localStorage si hay tickets nuevos
+      const hasMergeChanges = merged.length !== localTickets.length;
+      if (hasMergeChanges) {
+        console.log("🔧 DEBUG getTickets(): Actualizando localStorage con tickets nuevos de Supabase");
+        saveLocal(TICKETS_KEY, merged);
+      } else {
+        console.log("🔧 DEBUG getTickets(): NO actualizando localStorage (sin cambios)");
+      }
+      
+      return merged.map(enrichTicketWithSLA);
+    }
+  } catch (err) {
+    console.warn("Supabase getTickets falló, usando localStorage:", err);
+  }
+
+  // Fallback: usar localStorage
+  return localTickets.map(enrichTicketWithSLA);
 }
 
 export async function createTicket(ticket: Ticket): Promise<void> {
@@ -120,6 +163,26 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
+  // CRÍTICO: Actualizar localStorage PRIMERO y SINCRÓNICAMENTE
+  // Esto es NON-NEGOTIABLE para cambios optimistas
+  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  
+  // Verificar que el ticket existe
+  const ticketIndex = current.findIndex(item => item.id === id);
+  if (ticketIndex === -1) {
+    throw new Error(`Ticket ${id} not found in localStorage`);
+  }
+  
+  // Actualizar el ticket
+  const updated = current.map((item) =>
+    item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
+  );
+  
+  // GUARDAR INMEDIATAMENTE en localStorage
+  saveLocal(TICKETS_KEY, updated);
+  console.log(`updateTicket: Actualizado ${id} en localStorage, status=${payload.status}`);
+
+  // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {
     try {
       // Filtrar solo campos que existen en la tabla de Supabase
@@ -129,19 +192,18 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
       );
       
       const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
-      if (!error) {
-        return;
+      if (error) {
+        console.warn(`updateTicket: Supabase fallo para ${id}:`, error);
+        // NO relanzar el error aquí - los cambios ya están en localStorage
+      } else {
+        console.log(`updateTicket: ${id} actualizado exitosamente en Supabase`);
       }
     } catch (err) {
-      console.warn("Supabase updateTicket falló, actualizando localStorage:", err);
+      console.warn(`updateTicket: Excepcion de Supabase para ${id}:`, err);
+      // NO relanzar - localStorage ya está actualizado
     }
   }
-
-  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  const updated = current.map((item) =>
-    item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
-  );
-  saveLocal(TICKETS_KEY, updated);
+  // NO hay que relanzar errores aquí - localStorage está garantizado que se actualizó
 }
 
 export async function getTicketById(id: string): Promise<Ticket | undefined> {
