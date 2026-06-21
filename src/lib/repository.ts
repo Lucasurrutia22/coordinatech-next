@@ -186,7 +186,7 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
   if (hasSupabaseEnv && supabase) {
     try {
       // Filtrar solo campos que existen en la tabla de Supabase
-      const validFields: (keyof Ticket)[] = ['ticket_type', 'title', 'description', 'address', 'status', 'priority', 'scheduled_date', 'technician_id'];
+      const validFields: (keyof Ticket)[] = ['ticket_type', 'title', 'description', 'address', 'status', 'priority', 'scheduled_date', 'technician_id', 'is_archived'];
       const filteredPayload = Object.fromEntries(
         Object.entries(payload).filter(([key]) => validFields.includes(key as keyof Ticket))
       );

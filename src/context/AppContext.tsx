@@ -286,18 +286,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTechnician: addTechnicianHandler,
       addWorkOrder: addWorkOrderHandler,
       addIncompleteReport: addIncompleteReportHandler,
-      // Filtro por rol: admin ve todos, técnico solo sus tickets ACTIVOS
+      // Filtro por rol: admin ve todos, técnico solo sus tickets ACTIVOS (excluyendo archivados y completados)
       getVisibleTickets: () => {
         if (!user) return [];
-        if (user.role === "admin") return tickets;
-        // Técnico ve solo sus tickets asignados y ACTIVOS (excluyendo completados/no completados)
-        return tickets.filter((t) => t.technician_id === user.id && !["completed", "not_completed"].includes(t.status));
+        if (user.role === "admin") {
+          // Admin ve todos los tickets EXCEPTO archivados
+          return tickets.filter((t) => !t.is_archived);
+        }
+        // Técnico ve solo sus tickets asignados, ACTIVOS (no completados/no completados) y NO archivados
+        return tickets.filter((t) => t.technician_id === user.id && !["completed", "not_completed"].includes(t.status) && !t.is_archived);
       },
-      // Tickets sin asignar disponibles para que técnicos acepten (SOLO pending)
+      // Tickets sin asignar disponibles para que técnicos acepten (SOLO pending, no archivados)
       getAvailableTickets: () => {
         if (!user || user.role === "admin") return [];
-        // Tickets PENDING sin técnico asignado. Excluye not_completed del admin
-        return tickets.filter((t) => (!t.technician_id || t.technician_id === "") && t.status === "pending");
+        // Tickets PENDING sin técnico asignado, no archivados
+        return tickets.filter((t) => (!t.technician_id || t.technician_id === "") && t.status === "pending" && !t.is_archived);
       },
       // Cálculo de SLA
       getSLACompliance: () => calculateSLACompliance(tickets),

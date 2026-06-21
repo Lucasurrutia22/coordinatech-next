@@ -11,7 +11,7 @@ import { DocumentUploader, DocumentFile } from "@/components/DocumentUploader";
 import { WorkPhotoCapture } from "@/components/WorkPhotoCapture";
 import { MapViewer } from "@/components/MapViewer";
 const ZOHO_URL =
-  "https://forms.zohopublic.com/virtualoffice12892/form/OrdendeSoporte/formperma/dvHAoHck2qvyQ8lww42gPBGtdn5T_xvx0896QCrQbrw/htmlRecords/submit";
+  "https://forms.zohopublic.com/lucasurrutiaagm1/form/FormulariodeOrdendeSoporteenTerreno/formperma/kMm5kCLYqRM8FWN2jhRU-paPESv0711Ff59ftqHtwok";
 
 /* ─── Firma canvas ─────────────────────────────────────── */
 function SignaturePad({
@@ -236,6 +236,102 @@ export default function OrdenSoportePage() {
     }
   })();
 
+  // Función para generar el HTML del email con la orden de trabajo
+  const generateEmailHTML = (formData: Record<string, any>) => {
+    const techEmail = formData.tech_email;
+    const ratingStars = "⭐".repeat(formData.rating) + "☆".repeat(5 - formData.rating);
+    
+    return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: white; padding: 20px; border-radius: 0 0 8px 8px; }
+          .section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+          .section:last-child { border-bottom: none; }
+          .label { font-weight: bold; color: #667eea; margin-top: 10px; }
+          .value { margin-left: 10px; color: #555; }
+          .rating { font-size: 18px; margin-top: 5px; }
+          .footer { text-align: center; color: #999; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Orden de Soporte - Copia del Técnico</h1>
+            <p>Ticket #${ticket.id}</p>
+          </div>
+          <div class="content">
+            <div class="section">
+              <h3>📋 Información de Terreno</h3>
+              <div class="label">Código de Solicitud:</div>
+              <div class="value">${ticket.id}</div>
+              <div class="label">Técnico:</div>
+              <div class="value">${formData.tech_name}</div>
+              <div class="label">Correo:</div>
+              <div class="value">${techEmail}</div>
+              <div class="label">Fecha de Visita:</div>
+              <div class="value">${scheduledFormatted}</div>
+            </div>
+
+            <div class="section">
+              <h3>👤 Información del Cliente</h3>
+              <div class="label">Nombre:</div>
+              <div class="value">${formData.cliente_nombre}</div>
+              <div class="label">Ubicación/Local:</div>
+              <div class="value">${formData.cliente_local}</div>
+              <div class="label">Dirección:</div>
+              <div class="value">${formData.cliente_direccion}</div>
+              <div class="label">Ciudad:</div>
+              <div class="value">${formData.cliente_ciudad}</div>
+            </div>
+
+            <div class="section">
+              <h3>🔧 Detalles del Trabajo</h3>
+              <div class="label">Problemática:</div>
+              <div class="value">${formData.problematica.replace(/\n/g, "<br>")}</div>
+              <div class="label">Solución Aplicada:</div>
+              <div class="value">${formData.solucion.replace(/\n/g, "<br>")}</div>
+              <div class="label">Pruebas Realizadas:</div>
+              <div class="value">${formData.pruebas.replace(/\n/g, "<br>")}</div>
+              <div class="label">Equipo Reemplazado:</div>
+              <div class="value">${formData.reemplazo_equipo || "No"}</div>
+              <div class="label">Se Retira Equipo:</div>
+              <div class="value">${formData.retira_equipo ? "Sí" : "No"}</div>
+            </div>
+
+            <div class="section">
+              <h3>⭐ Calificación del Servicio</h3>
+              <div class="rating">${ratingStars}</div>
+              <div class="label">Razón:</div>
+              <div class="value">${formData.razon_calificacion.replace(/\n/g, "<br>")}</div>
+            </div>
+
+            <div class="section">
+              <h3>👨‍💼 Datos de Supervisión y Recepción</h3>
+              <div class="label">Supervisor:</div>
+              <div class="value">${formData.supervisor_nombre}</div>
+              <div class="label">Quien Recibe:</div>
+              <div class="value">${formData.recibe_nombre}</div>
+              <div class="label">Cargo de Quien Recibe:</div>
+              <div class="value">${formData.recibe_cargo}</div>
+            </div>
+          </div>
+          <div class="footer">
+            <p>Esta es una copia automática de tu orden de soporte generada por CoordinaTech</p>
+            <p>${new Date().toLocaleString("es-ES")}</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     const rating = ratingInputRef.current?.value ?? "0";
     if (!rating || rating === "0") {
@@ -293,7 +389,25 @@ export default function OrdenSoportePage() {
       // Esto hace que desaparezca automáticamente de "Mis Tickets Asignados"
       await editTicket(ticket.id, { status: "completed" });
       
-      // PASO 3: Si todo fue exitoso, enviar a Zoho en nueva pestaña
+      // PASO 3: Enviar copia de la orden por email al técnico
+      const emailHTML = generateEmailHTML(orderData);
+      try {
+        await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: orderData.tech_email,
+            subject: `Copia de Orden de Soporte - Ticket #${ticket.id}`,
+            htmlContent: emailHTML,
+            textContent: `Copia de tu orden de soporte para el ticket ${ticket.id}`,
+          }),
+        });
+      } catch (emailError) {
+        console.error("Error al enviar email:", emailError);
+        // No detener el flujo si falla el email
+      }
+      
+      // PASO 4: Si todo fue exitoso, enviar a Zoho en nueva pestaña
       // Enviar a Zoho en nueva pestaña (sin esperar respuesta)
       window.open(form.action, "_blank");
       

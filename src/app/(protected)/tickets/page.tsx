@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
@@ -17,6 +17,7 @@ export default function TicketsPage() {
   const visibleTickets = getVisibleTickets();
   const availableTickets = getAvailableTickets();
   const [accepting, setAccepting] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState<string | null>(null);
 
   const handleAcceptTicket = async (ticketId: string) => {
     if (!user) return;
@@ -25,6 +26,20 @@ export default function TicketsPage() {
       await editTicket(ticketId, { technician_id: user.id });
     } finally {
       setAccepting(null);
+    }
+  };
+
+  const handleArchiveTicket = async (ticketId: string) => {
+    if (!user || !confirm("¿Estás seguro de que deseas archivar este ticket?")) return;
+    setArchiving(ticketId);
+    try {
+      // Marcar el ticket como archived (añadir campo is_archived = true)
+      await editTicket(ticketId, { is_archived: true });
+    } catch (error) {
+      console.error("Error archiving ticket:", error);
+      alert("Error al archivar el ticket. Por favor, intenta de nuevo.");
+    } finally {
+      setArchiving(null);
     }
   };
 
@@ -102,6 +117,31 @@ export default function TicketsPage() {
                     >
                       {accepting === ticket.id ? "Aceptando..." : "✓ Aceptar"}
                     </button>
+                  ) : ticket.status === "completed" ? (
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <Link href={`/tickets/${ticket.id}`} style={{ fontSize: "0.82rem" }}>Ver</Link>
+                      <button
+                        onClick={() => handleArchiveTicket(ticket.id)}
+                        disabled={archiving === ticket.id}
+                        title="Archivar ticket resuelto"
+                        style={{
+                          padding: "0.35rem 0.5rem",
+                          background: archiving === ticket.id ? "var(--line)" : "#ef4444",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "var(--r-sm)",
+                          cursor: archiving === ticket.id ? "not-allowed" : "pointer",
+                          fontSize: "0.82rem",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.25rem",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        {archiving === ticket.id && "..."}
+                      </button>
+                    </div>
                   ) : (
                     <Link href={`/tickets/${ticket.id}`}>Ver</Link>
                   )}

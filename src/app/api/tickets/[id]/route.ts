@@ -78,6 +78,7 @@ export async function PATCH(
       "scheduled_date",
       "description",
       "work_order_id",
+      "is_archived",
     ];
     
     for (const key of Object.keys(body)) {

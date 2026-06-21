@@ -40,6 +40,8 @@ export interface Ticket {
   created_at?: string;
   sla_deadline?: string; // Fecha límite según SLA
   sla_status?: "healthy" | "warning" | "critical"; // Estado del SLA
+  is_archived?: boolean; // Marcado como archivado (soft delete)
+  client_name?: string; // Agregado para la tabla
 }
 
 // SLA tiempos en horas según prioridad
