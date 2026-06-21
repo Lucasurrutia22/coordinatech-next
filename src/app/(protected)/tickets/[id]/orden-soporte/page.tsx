@@ -195,7 +195,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 /* ─── Página principal ─────────────────────────────────── */
 export default function OrdenSoportePage() {
   const { id } = useParams<{ id: string }>();
-  const { tickets, user, addWorkOrder } = useAppContext();
+  const { tickets, user, addWorkOrder, editTicket, refreshData } = useAppContext();
 
   const ticket = tickets.find((t) => t.id === id);
   const sigInputRef = useRef<HTMLInputElement>(null);
