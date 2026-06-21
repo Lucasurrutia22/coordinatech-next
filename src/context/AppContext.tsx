@@ -178,16 +178,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const editTicketHandler = useCallback(
     async (id: string, payload: Partial<Ticket>) => {
+      // Guardar estado anterior por si falla
+      const prevTickets = tickets;
+      
+      // Actualización optimista: cambio local inmediato
       setTickets((prev) => prev.map((item) => (item.id === id ? { ...item, ...payload } : item)));
+      
       try {
+        // Primero intenta via API con validación server-side (si está disponible)
+        try {
+          const response = await fetch(`/api/tickets/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `API error: ${response.status}`);
+          }
+
+          // Si la API devuelve éxito, sincronizar datos y retornar
+          await refreshData();
+          return;
+        } catch (apiError) {
+          console.warn("API route no disponible, usando fallback:", apiError);
+          // Fallback a la función original si API no está disponible
+        }
+
+        // Fallback: usar updateTicket directamente
         await updateTicket(id, payload);
-        await refreshData(); // ← AGREGADO: Sincronizar después de actualizar
+        await refreshData();
       } catch (error) {
-        console.error("No se pudo persistir el ticket actualizado:", error);
-        await refreshData(); // Recargar para revertir cambios fallidos
+        console.error(`Error al actualizar ticket ${id}:`, error);
+        
+        // Revertir cambios locales si falla
+        setTickets(prevTickets);
+        
+        // Recargar datos del servidor para sincronizar
+        try {
+          await refreshData();
+        } catch (refetchError) {
+          console.error("Error al sincronizar datos después del fallo:", refetchError);
+        }
+        
+        // Re-lanzar el error para que lo maneje la UI
+        throw error;
       }
     },
-    [refreshData],
+    [refreshData, tickets],
   );
 
   const addTechnicianHandler = useCallback(
