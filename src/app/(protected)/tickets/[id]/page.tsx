@@ -155,15 +155,16 @@ export default function TicketDetailPage() {
         status: "not_completed",
         technician_id: "" // Limpiar para reasignación
       });
+      
+      // 2.5. Esperar a que refreshData() sincronice completamente
+      await refreshData();
 
       // 3. Cerrar modal inmediatamente
       setShowNCModal(false);
       setNcSubmitting(false);
       
-      // 4. Redirigir a /tickets después de 800ms para que se actualice la BD
-      setTimeout(() => {
-        router.push("/tickets");
-      }, 800);
+      // 4. Redirigir a /tickets después de sincronizar completamente
+      router.push("/tickets");
       
     } catch (err) {
       console.error("Error al marcar como no completado:", err);
