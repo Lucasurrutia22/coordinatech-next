@@ -245,18 +245,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTechnician: addTechnicianHandler,
       addWorkOrder: addWorkOrderHandler,
       addIncompleteReport: addIncompleteReportHandler,
-      // Filtro por rol: admin ve todos, técnico solo sus tickets
+      // Filtro por rol: admin ve todos, técnico solo sus tickets ACTIVOS
       getVisibleTickets: () => {
         if (!user) return [];
         if (user.role === "admin") return tickets;
-        // Técnico ve solo sus tickets asignados
-        return tickets.filter((t) => t.technician_id === user.id);
+        // Técnico ve solo sus tickets asignados y ACTIVOS (excluyendo completados/no completados)
+        return tickets.filter((t) => t.technician_id === user.id && !["completed", "not_completed"].includes(t.status));
       },
-      // Tickets sin asignar disponibles para que técnicos acepten
+      // Tickets sin asignar disponibles para que técnicos acepten (SOLO pending)
       getAvailableTickets: () => {
         if (!user || user.role === "admin") return [];
-        // Tickets que no tienen técnico asignado (technician_id vacío o null)
-        return tickets.filter((t) => !t.technician_id || t.technician_id === "");
+        // Tickets PENDING sin técnico asignado. Excluye not_completed del admin
+        return tickets.filter((t) => (!t.technician_id || t.technician_id === "") && t.status === "pending");
       },
       // Cálculo de SLA
       getSLACompliance: () => calculateSLACompliance(tickets),
