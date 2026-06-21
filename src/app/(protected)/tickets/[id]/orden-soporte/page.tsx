@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader, Send } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, CheckCircle2, Loader, Send, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useAppContext } from "@/context/AppContext";
 
@@ -50,6 +50,22 @@ export default function OrdenSoportePage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const zohoWindowRef = useRef<Window | null>(null);
+
+  // Monitorear si la ventana de Zoho se cerró para redirigir automáticamente
+  useEffect(() => {
+    if (!submitted || !zohoWindowRef.current) return;
+
+    const checkZohoWindow = setInterval(() => {
+      if (zohoWindowRef.current && zohoWindowRef.current.closed) {
+        // La ventana de Zoho se cerró, redirigir a /tickets
+        clearInterval(checkZohoWindow);
+        router.replace("/tickets");
+      }
+    }, 500); // Verificar cada 500ms
+
+    return () => clearInterval(checkZohoWindow);
+  }, [submitted, router]);
 
   if (!ticket) {
     return <section className="panel">Ticket no encontrado.</section>;
@@ -106,7 +122,7 @@ export default function OrdenSoportePage() {
       // PASO 3: Mostrar confirmación
       setSubmitted(true);
 
-      // PASO 4: Después de 1.5s, abrir Zoho con parámetros prefilled
+      // PASO 4: Después de 1.5s, abrir Zoho en NUEVA VENTANA (sin cerrar CoordinaTech)
       setTimeout(() => {
         // Construir URL de Zoho con campos pre-rellenados
         const clientName = (formData.get("cliente_nombre") as string) || "";
@@ -121,13 +137,11 @@ export default function OrdenSoportePage() {
           clientLocal
         );
         
-        // Abrir Zoho con pre-relleno
-        window.location.href = zohoUrlWithPrefill;
+        // Abrir Zoho en NUEVA VENTANA (no bloquea CoordinaTech)
+        const zohoWindow = window.open(zohoUrlWithPrefill, "zoho_form", "width=1024,height=800");
+        zohoWindowRef.current = zohoWindow;
         
-        // Luego redirigir a /tickets (aunque Zoho habrá cambiado la página)
-        setTimeout(() => {
-          router.replace("/tickets");
-        }, 2000);
+        // CoordinaTech permanece abierta, el usuario puede cerrar la ventana de Zoho cuando termine
       }, 1500);
     } catch (error) {
       console.error("Error al completar orden:", error);
@@ -143,14 +157,64 @@ export default function OrdenSoportePage() {
       <div className="stack-lg" style={{ maxWidth: 640, margin: "0 auto" }}>
         <article className="panel" style={{ textAlign: "center", padding: "3rem 2rem" }}>
           <CheckCircle2 size={56} color="var(--brand)" style={{ marginBottom: "1rem" }} />
-          <h2 style={{ margin: "0 0 0.5rem" }}>Orden completada</h2>
+          <h2 style={{ margin: "0 0 0.5rem" }}>¡Orden completada en CoordinaTech!</h2>
           <p className="muted" style={{ lineHeight: 1.6, marginBottom: "1.5rem" }}>
-            Se guardó tu orden de soporte. Serás redirigido al formulario Zoho en breve...
+            ✓ Tu orden de soporte se guardó correctamente en CoordinaTech
+            <br />
+            <br />
+            📱 Se abrió el <strong>formulario Zoho en una ventana nueva</strong> donde deberás completar:
+            <br />
+            • Detalles técnicos de la reparación
+            <br />
+            • Calificación del servicio
+            <br />
+            • Firma del cliente
+            <br />
+            <br />
+            <strong>⏱️ Al cerrar la ventana de Zoho, volverás automáticamente a tu bandeja de tickets</strong>
           </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-            <Loader size={16} style={{ animation: "spin 1s linear infinite" }} />
-            <span style={{ fontSize: "0.88rem", color: "var(--muted)" }}>Abriendo formulario...</span>
+          
+          <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--surface-2)", borderRadius: "var(--r-md)", border: "1px solid var(--line)" }}>
+            <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.75rem" }}>
+              <strong>✨ Tip:</strong> Si no ves la ventana de Zoho, revisa si fue bloqueada por el navegador (busca un icono de bloqueo en la barra de direcciones)
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                // Intentar enfocar la ventana de Zoho si está abierta
+                if (zohoWindowRef.current && !zohoWindowRef.current.closed) {
+                  zohoWindowRef.current.focus();
+                }
+              }}
+              style={{
+                padding: "0.65rem 1.25rem",
+                background: "var(--brand)",
+                color: "white",
+                border: "none",
+                borderRadius: "var(--r-sm)",
+                fontSize: "0.88rem",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <ExternalLink size={16} /> Ir a formulario Zoho
+            </button>
           </div>
+
+          <p style={{ fontSize: "0.82rem", color: "var(--muted)", margin: "1rem 0 0" }}>
+            O si prefieres, haz clic en el botón de abajo para volver a tu bandeja ahora:
+          </p>
+          <button
+            type="button"
+            onClick={() => router.replace("/tickets")}
+            className="outline-btn"
+            style={{ marginTop: "1rem", display: "inline-block" }}
+          >
+            ← Volver a mis tickets
+          </button>
         </article>
       </div>
     );
