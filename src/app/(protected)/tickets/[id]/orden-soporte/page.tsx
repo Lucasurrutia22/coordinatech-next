@@ -6,8 +6,40 @@ import { ArrowLeft, CheckCircle2, Loader, Send } from "lucide-react";
 import Link from "next/link";
 import { useAppContext } from "@/context/AppContext";
 
-const ZOHO_URL =
+const ZOHO_BASE_URL =
   "https://forms.zohopublic.com/lucasurrutiaagm1/form/FormulariodeOrdendeSoporteenTerreno/formperma/kMm5kCLYqRM8FWN2jhRU-paPESv0711Ff59ftqHtwok";
+
+// Función para construir URL de Zoho con campos pre-rellenados
+function buildZohoUrlWithPrefill(
+  techName: string,
+  techEmail: string,
+  ticketId: string,
+  address: string,
+  clientName?: string,
+  clientLocal?: string
+): string {
+  // Parámetros para pre-llenar campos en Zoho
+  // Los nombres de campo se basan en la estructura del formulario
+  const params = new URLSearchParams();
+  
+  // Datos del Técnico
+  params.append("Name_First", techName.split(" ")[0]); // Primer nombre
+  params.append("Name_Last", techName.split(" ").slice(1).join(" ")); // Resto del nombre
+  params.append("Email", techEmail);
+  
+  // Código de Solicitud (Ticket ID)
+  params.append("SingleLine", ticketId);
+  
+  // Datos del Cliente (opcionales, si el usuario los ingresó)
+  if (clientName) params.append("SingleLine1", clientName);
+  if (clientLocal) params.append("SingleLine2", clientLocal);
+  
+  // Dirección
+  params.append("SingleLine3", address);
+  
+  // Construir URL final
+  return `${ZOHO_BASE_URL}?${params.toString()}`;
+}
 
 export default function OrdenSoportePage() {
   const { id } = useParams<{ id: string }>();
@@ -74,10 +106,24 @@ export default function OrdenSoportePage() {
       // PASO 3: Mostrar confirmación
       setSubmitted(true);
 
-      // PASO 4: Después de 1.5s, abrir Zoho y redirigir
+      // PASO 4: Después de 1.5s, abrir Zoho con parámetros prefilled
       setTimeout(() => {
-        // Abrir Zoho en la misma pestaña
-        window.location.href = ZOHO_URL;
+        // Construir URL de Zoho con campos pre-rellenados
+        const clientName = (formData.get("cliente_nombre") as string) || "";
+        const clientLocal = (formData.get("cliente_local") as string) || "";
+        
+        const zohoUrlWithPrefill = buildZohoUrlWithPrefill(
+          user.name,
+          user.email,
+          ticket.id,
+          ticket.address,
+          clientName,
+          clientLocal
+        );
+        
+        // Abrir Zoho con pre-relleno
+        window.location.href = zohoUrlWithPrefill;
+        
         // Luego redirigir a /tickets (aunque Zoho habrá cambiado la página)
         setTimeout(() => {
           router.replace("/tickets");
@@ -247,8 +293,16 @@ export default function OrdenSoportePage() {
           }}
         >
           <strong>ℹ️ Próximo paso:</strong> Al hacer clic en "Enviar", tu orden se guardará y se
-          abrirá el formulario oficial de Zoho donde deberás completar todos los detalles técnicos,
-          calificación del cliente y firma.
+          abrirá el <strong>formulario oficial de Zoho</strong> con estos campos <strong>ya pre-rellenados</strong>:
+          <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
+            <li>✓ Nombre del técnico: <strong>{user.name}</strong></li>
+            <li>✓ Email: <strong>{user.email}</strong></li>
+            <li>✓ Código de solicitud: <strong>{ticket.id}</strong></li>
+            <li>✓ Dirección: <strong>{ticket.address}</strong></li>
+          </ul>
+          <p style={{ margin: "0.5rem 0 0", fontSize: "0.75rem" }}>
+            En Zoho completarás: problemática, solución, pruebas, calificación y firma.
+          </p>
         </div>
 
         {/* ── Errores ── */}
