@@ -47,8 +47,7 @@ export function WorkTimer({
   const [selectedBreakReason, setSelectedBreakReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showBreakReasonModal, setShowBreakReasonModal] = useState(false);
-  const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [completionOption, setCompletionOption] = useState<'not_completed' | 'work_order' | null>(null);
+  // Modal de finalización removido - cerrar ticket solo desde tickets/[id]/page.tsx
   const [currentBreakReason, setCurrentBreakReason] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -183,29 +182,7 @@ export function WorkTimer({
     }
   };
 
-  const handleCompleteClick = () => {
-    setShowCompletionModal(true);
-    setCompletionOption(null);
-  };
-
-  const handleCompleteWithOption = async (option: 'not_completed' | 'work_order') => {
-    try {
-      setLoading(true);
-      const notes = option === 'not_completed' 
-        ? 'Trabajo no completado - Requiere revisión'
-        : 'Trabajo completado - Se requiere orden de soporte';
-      
-      await completeWorkTimer(ticketId, technicianId, notes, option);
-      setState('idle');
-      setShowCompletionModal(false);
-      onWorkCompleted?.();
-    } catch (err) {
-      console.error('Error completing timer:', err);
-      alert('Error finalizando cronómetro');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Finalización removida - debe hacerse desde buttons en tickets/[id]/page.tsx
 
   const duration = formatDuration(elapsedMs);
 
@@ -465,73 +442,7 @@ export function WorkTimer({
         </div>
       )}
 
-      {/* Modal para finalización del trabajo */}
-      {showCompletionModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-white to-slate-50 p-8 rounded-xl shadow-2xl max-w-md border border-slate-200">
-            <h3 className="text-2xl font-bold mb-2 text-center text-slate-900">Finalizar Trabajo</h3>
-            <p className="text-slate-600 text-center mb-6">¿Cómo deseas finalizar este ticket?</p>
-
-            {/* Opciones de finalización */}
-            <div className="space-y-3 mb-6">
-              <button
-                onClick={() => setCompletionOption('work_order')}
-                className={`w-full p-4 rounded-lg border-2 transition text-left ${
-                  completionOption === 'work_order'
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-slate-200 hover:border-green-300 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <div className={`font-bold text-lg ${
-                  completionOption === 'work_order' ? 'text-green-700' : 'text-slate-800'
-                }`}>✅ Crear Orden de Soporte</div>
-                <div className={`text-sm mt-1 ${
-                  completionOption === 'work_order' ? 'text-green-600' : 'text-slate-600'
-                }`}>Completa el ticket y genera una orden de soporte para seguimiento</div>
-              </button>
-
-              <button
-                onClick={() => setCompletionOption('not_completed')}
-                className={`w-full p-4 rounded-lg border-2 transition text-left ${
-                  completionOption === 'not_completed'
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-slate-200 hover:border-amber-300 bg-white hover:bg-slate-50'
-                }`}
-              >
-                <div className={`font-bold text-lg ${
-                  completionOption === 'not_completed' ? 'text-amber-700' : 'text-slate-800'
-                }`}>⚠️ No Completado</div>
-                <div className={`text-sm mt-1 ${
-                  completionOption === 'not_completed' ? 'text-amber-600' : 'text-slate-600'
-                }`}>El trabajo no está completo - requiere revisión adicional</div>
-              </button>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowCompletionModal(false);
-                  setCompletionOption(null);
-                }}
-                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-3 px-4 rounded-lg transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  if (completionOption) {
-                    handleCompleteWithOption(completionOption);
-                  }
-                }}
-                disabled={loading || !completionOption}
-                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-lg transition"
-              >
-                {loading ? 'Finalizando...' : 'Finalizar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de finalización removido - cerrar desde tickets/[id]/page.tsx */}
     </div>
   );
 }

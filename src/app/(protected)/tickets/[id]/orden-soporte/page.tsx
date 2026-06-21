@@ -284,6 +284,9 @@ export default function OrdenSoportePage() {
 
     // Guardar en Supabase/localStorage (fire-and-forget - el form continúa a Zoho)
     addWorkOrder(orderData).catch(console.error);
+    
+    // CRÍTICO: Actualizar estado del ticket a completado
+    editTicket(ticket.id, { status: "completed" }).catch(console.error);
 
     setSubmitted(true);
     // El form continúa enviándose a Zoho en una nueva pestaña (target="_blank")
