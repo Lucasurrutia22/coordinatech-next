@@ -50,6 +50,7 @@ export default function OrdenSoportePage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [zohoUrl, setZohoUrl] = useState<string>("");
   const zohoWindowRef = useRef<Window | null>(null);
 
   // Monitorear si la ventana de Zoho se cerró para redirigir automáticamente
@@ -137,6 +138,9 @@ export default function OrdenSoportePage() {
           clientLocal
         );
         
+        // Guardar URL para usar en el botón "Ir a formulario Zoho"
+        setZohoUrl(zohoUrlWithPrefill);
+        
         // Abrir Zoho en NUEVA VENTANA (no bloquea CoordinaTech)
         const zohoWindow = window.open(zohoUrlWithPrefill, "zoho_form", "width=1024,height=800");
         zohoWindowRef.current = zohoWindow;
@@ -181,9 +185,13 @@ export default function OrdenSoportePage() {
             <button
               type="button"
               onClick={() => {
-                // Intentar enfocar la ventana de Zoho si está abierta
+                // Si la ventana está abierta, enfocarla
                 if (zohoWindowRef.current && !zohoWindowRef.current.closed) {
                   zohoWindowRef.current.focus();
+                } else if (zohoUrl) {
+                  // Si la ventana está cerrada o no existe, abrir una nueva
+                  const newZohoWindow = window.open(zohoUrl, "zoho_form", "width=1024,height=800");
+                  zohoWindowRef.current = newZohoWindow;
                 }
               }}
               style={{
