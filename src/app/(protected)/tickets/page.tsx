@@ -8,10 +8,12 @@ import { es } from "date-fns/locale";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
 import { SLAIndicator } from "@/components/SLAIndicator";
 import { useAppContext } from "@/context/AppContext";
+import { useSLAAlerts } from "@/hooks/useSLAAlerts";
 import { TICKET_TYPE_META } from "@/types/domain";
 
 export default function TicketsPage() {
-  const { getVisibleTickets, getAvailableTickets, technicians, user, editTicket } = useAppContext();
+  const { getVisibleTickets, getAvailableTickets, technicians, user, editTicket, tickets } = useAppContext();
+  useSLAAlerts(tickets);
   const visibleTickets = getVisibleTickets();
   const availableTickets = getAvailableTickets();
   const [accepting, setAccepting] = useState<string | null>(null);
