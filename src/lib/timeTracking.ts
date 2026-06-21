@@ -36,28 +36,41 @@ export async function startWorkTimer(
   ticketId: string,
   technicianId: string
 ) {
-  const now = new Date().toISOString();
+  const { hasSupabaseEnv } = await import('./supabase');
+  
+  // Si Supabase no está configurado, solo retornar sin error
+  if (!hasSupabaseEnv) {
+    console.log('Work timer started (offline mode):', ticketId);
+    return;
+  }
 
-  // Actualizar ticket
-  const { error: ticketError } = await supabase
-    .from('tickets')
-    .update({ work_started_at: now, status: 'in_progress' })
-    .eq('id', ticketId);
+  try {
+    const now = new Date().toISOString();
 
-  if (ticketError) throw ticketError;
+    // Actualizar ticket
+    const { error: ticketError } = await supabase
+      .from('tickets')
+      .update({ work_started_at: now, status: 'in_progress' })
+      .eq('id', ticketId);
 
-  // Registrar evento
-  const { error: logError } = await supabase
-    .from('work_time_logs')
-    .insert([{
-      ticket_id: ticketId,
-      technician_id: technicianId,
-      event_type: 'started',
-      timestamp: now,
-      notes: 'Trabajo iniciado por técnico',
-    }]);
+    if (ticketError) throw ticketError;
 
-  if (logError) throw logError;
+    // Registrar evento
+    const { error: logError } = await supabase
+      .from('work_time_logs')
+      .insert([{
+        ticket_id: ticketId,
+        technician_id: technicianId,
+        event_type: 'started',
+        timestamp: now,
+        notes: 'Trabajo iniciado por técnico',
+      }]);
+
+    if (logError) throw logError;
+  } catch (err) {
+    console.error('Error in startWorkTimer:', err);
+    // No lanzar error, permitir que continúe en modo offline
+  }
 }
 
 /**
@@ -68,32 +81,45 @@ export async function pauseWorkTimer(
   technicianId: string,
   breakReason?: string
 ) {
-  const breakStartTime = new Date().toISOString();
+  const { hasSupabaseEnv } = await import('./supabase');
+  
+  // Si Supabase no está configurado, solo retornar sin error
+  if (!hasSupabaseEnv) {
+    console.log('Work timer paused (offline mode):', ticketId, breakReason);
+    return;
+  }
 
-  // Crear registro de pausa
-  const { error: breakError } = await supabase
-    .from('work_breaks')
-    .insert([{
-      ticket_id: ticketId,
-      technician_id: technicianId,
-      break_start: breakStartTime,
-      break_reason: breakReason,
-    }]);
+  try {
+    const breakStartTime = new Date().toISOString();
 
-  if (breakError) throw breakError;
+    // Crear registro de pausa
+    const { error: breakError } = await supabase
+      .from('work_breaks')
+      .insert([{
+        ticket_id: ticketId,
+        technician_id: technicianId,
+        break_start: breakStartTime,
+        break_reason: breakReason,
+      }]);
 
-  // Registrar evento
-  const { error: logError } = await supabase
-    .from('work_time_logs')
-    .insert([{
-      ticket_id: ticketId,
-      technician_id: technicianId,
-      event_type: 'paused',
-      timestamp: breakStartTime,
-      notes: breakReason,
-    }]);
+    if (breakError) throw breakError;
 
-  if (logError) throw logError;
+    // Registrar evento
+    const { error: logError } = await supabase
+      .from('work_time_logs')
+      .insert([{
+        ticket_id: ticketId,
+        technician_id: technicianId,
+        event_type: 'paused',
+        timestamp: breakStartTime,
+        notes: breakReason,
+      }]);
+
+    if (logError) throw logError;
+  } catch (err) {
+    console.error('Error in pauseWorkTimer:', err);
+    // No lanzar error
+  }
 }
 
 /**
@@ -103,52 +129,65 @@ export async function resumeWorkTimer(
   ticketId: string,
   technicianId: string
 ) {
-  const resumeTime = new Date().toISOString();
-
-  // Obtener último break activo
-  const { data: lastBreak, error: breakFetchError } = await supabase
-    .from('work_breaks')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .is('break_end', null)
-    .order('break_start', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (breakFetchError && breakFetchError.code !== 'PGRST116') {
-    throw breakFetchError;
+  const { hasSupabaseEnv } = await import('./supabase');
+  
+  // Si Supabase no está configurado, solo retornar sin error
+  if (!hasSupabaseEnv) {
+    console.log('Work timer resumed (offline mode):', ticketId);
+    return;
   }
 
-  if (lastBreak) {
-    // Calcular duración del break en milisegundos
-    const breakStart = new Date(lastBreak.break_start).getTime();
-    const resumeTs = new Date(resumeTime).getTime();
-    const breakDurationMs = resumeTs - breakStart;
+  try {
+    const resumeTime = new Date().toISOString();
 
-    // Actualizar break con fin y duración
-    const { error: breakUpdateError } = await supabase
+    // Obtener último break activo
+    const { data: lastBreak, error: breakFetchError } = await supabase
       .from('work_breaks')
-      .update({
-        break_end: resumeTime,
-        break_duration_ms: breakDurationMs,
-      })
-      .eq('id', lastBreak.id);
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .is('break_end', null)
+      .order('break_start', { ascending: false })
+      .limit(1)
+      .single();
 
-    if (breakUpdateError) throw breakUpdateError;
+    if (breakFetchError && breakFetchError.code !== 'PGRST116') {
+      throw breakFetchError;
+    }
+
+    if (lastBreak) {
+      // Calcular duración del break en milisegundos
+      const breakStart = new Date(lastBreak.break_start).getTime();
+      const resumeTs = new Date(resumeTime).getTime();
+      const breakDurationMs = resumeTs - breakStart;
+
+      // Actualizar break con fin y duración
+      const { error: breakUpdateError } = await supabase
+        .from('work_breaks')
+        .update({
+          break_end: resumeTime,
+          break_duration_ms: breakDurationMs,
+        })
+        .eq('id', lastBreak.id);
+
+      if (breakUpdateError) throw breakUpdateError;
+    }
+
+    // Registrar evento de reanudación
+    const { error: logError } = await supabase
+      .from('work_time_logs')
+      .insert([{
+        ticket_id: ticketId,
+        technician_id: technicianId,
+        event_type: 'resumed',
+        timestamp: resumeTime,
+        notes: 'Trabajo reanudado',
+      }]);
+
+    if (logError) throw logError;
+  } catch (err) {
+    console.error('Error in resumeWorkTimer:', err);
+    // No lanzar error
   }
-
-  // Registrar evento de reanudación
-  const { error: logError } = await supabase
-    .from('work_time_logs')
-    .insert([{
-      ticket_id: ticketId,
-      technician_id: technicianId,
-      event_type: 'resumed',
-      timestamp: resumeTime,
-      notes: 'Trabajo reanudado',
-    }]);
-
-  if (logError) throw logError;
 }
 
 /**
@@ -160,107 +199,148 @@ export async function completeWorkTimer(
   notes?: string,
   completionType: 'not_completed' | 'work_order' = 'work_order'
 ) {
-  const endTime = new Date().toISOString();
-
-  // Asegurar que no haya break abierto
-  const { data: openBreak } = await supabase
-    .from('work_breaks')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .is('break_end', null)
-    .single();
-
-  if (openBreak) {
-    await resumeWorkTimer(ticketId, technicianId);
+  const { hasSupabaseEnv } = await import('./supabase');
+  
+  // Si Supabase no está configurado, solo retornar sin error
+  if (!hasSupabaseEnv) {
+    console.log('Work timer completed (offline mode):', ticketId, completionType);
+    return;
   }
 
-  // Determinar estado final basado en tipo de finalización
-  const finalStatus = completionType === 'not_completed' ? 'pending' : 'completed';
-  
-  // Actualizar ticket
-  const { error: ticketError } = await supabase
-    .from('tickets')
-    .update({
-      work_ended_at: endTime,
-      status: finalStatus,
-      completion_type: completionType,
-      // Si es no completado, limpiar asignación para que esté disponible para reasignar
-      ...(completionType === 'not_completed' && { technician_id: '' }),
-    })
-    .eq('id', ticketId);
+  try {
+    const endTime = new Date().toISOString();
 
-  if (ticketError) throw ticketError;
+    // Asegurar que no haya break abierto
+    const { data: openBreak } = await supabase
+      .from('work_breaks')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .is('break_end', null)
+      .single();
 
-  // Si es orden de soporte, crear entrada correspondiente
-  if (completionType === 'work_order') {
-    const { error: woError } = await supabase
-      .from('work_orders')
+    if (openBreak) {
+      await resumeWorkTimer(ticketId, technicianId);
+    }
+
+    // Determinar estado final basado en tipo de finalización
+    const finalStatus = completionType === 'not_completed' ? 'pending' : 'completed';
+    
+    // Actualizar ticket
+    const { error: ticketError } = await supabase
+      .from('tickets')
+      .update({
+        work_ended_at: endTime,
+        status: finalStatus,
+        completion_type: completionType,
+        // Si es no completado, limpiar asignación para que esté disponible para reasignar
+        ...(completionType === 'not_completed' && { technician_id: '' }),
+      })
+      .eq('id', ticketId);
+
+    if (ticketError) throw ticketError;
+
+    // Si es orden de soporte, crear entrada correspondiente
+    if (completionType === 'work_order') {
+      const { error: woError } = await supabase
+        .from('work_orders')
+        .insert([{
+          ticket_id: ticketId,
+          technician_id: technicianId,
+          created_at: endTime,
+          status: 'pending',
+          description: notes || 'Orden de soporte generada automáticamente',
+        }]);
+
+      if (woError && woError.code !== 'PGRST110') { // PGRST110 = tabla no existe
+        console.warn('No se pudo crear orden de soporte:', woError);
+      }
+    }
+
+    // Registrar evento
+    const { error: logError } = await supabase
+      .from('work_time_logs')
       .insert([{
         ticket_id: ticketId,
         technician_id: technicianId,
-        created_at: endTime,
-        status: 'pending',
-        description: notes || 'Orden de soporte generada automáticamente',
+        event_type: 'completed',
+        timestamp: endTime,
+        notes: notes || `Trabajo ${completionType === 'not_completed' ? 'marcado como no completado' : 'completado con orden de soporte'}`,
       }]);
 
-    if (woError && woError.code !== 'PGRST110') { // PGRST110 = tabla no existe
-      console.warn('No se pudo crear orden de soporte:', woError);
-    }
+    if (logError) throw logError;
+  } catch (err) {
+    console.error('Error in completeWorkTimer:', err);
+    // No lanzar error
   }
-
-  // Registrar evento
-  const { error: logError } = await supabase
-    .from('work_time_logs')
-    .insert([{
-      ticket_id: ticketId,
-      technician_id: technicianId,
-      event_type: 'completed',
-      timestamp: endTime,
-      notes: notes || `Trabajo ${completionType === 'not_completed' ? 'marcado como no completado' : 'completado con orden de soporte'}`,
-    }]);
-
-  if (logError) throw logError;
 }
 
 /**
  * Obtener resumen completo de tiempos de trabajo
  */
 export async function getWorkTimeSummary(ticketId: string): Promise<WorkTimeSummary> {
-  // Obtener ticket
-  const { data: ticket, error: ticketError } = await supabase
-    .from('tickets')
-    .select('work_started_at, work_ended_at, work_duration_ms, active_duration_ms, paused_duration_ms')
-    .eq('id', ticketId)
-    .single();
+  const { hasSupabaseEnv } = await import('./supabase');
+  
+  // Si Supabase no está configurado, retornar valores por defecto
+  if (!hasSupabaseEnv) {
+    console.log('getWorkTimeSummary (offline mode):', ticketId);
+    return {
+      total_duration_ms: 0,
+      active_duration_ms: 0,
+      paused_duration_ms: 0,
+      break_count: 0,
+      events: [],
+      breaks: [],
+    };
+  }
 
-  if (ticketError) throw ticketError;
+  try {
+    // Obtener ticket
+    const { data: ticket, error: ticketError } = await supabase
+      .from('tickets')
+      .select('work_started_at, work_ended_at, work_duration_ms, active_duration_ms, paused_duration_ms')
+      .eq('id', ticketId)
+      .single();
 
-  // Obtener logs
-  const { data: logs, error: logsError } = await supabase
-    .from('work_time_logs')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('timestamp', { ascending: true });
+    if (ticketError) throw ticketError;
 
-  if (logsError) throw logsError;
+    // Obtener logs
+    const { data: logs, error: logsError } = await supabase
+      .from('work_time_logs')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('timestamp', { ascending: true });
 
-  // Obtener breaks
-  const { data: breaks, error: breaksError } = await supabase
-    .from('work_breaks')
-    .select('*')
-    .eq('ticket_id', ticketId)
-    .order('break_start', { ascending: true });
+    if (logsError) throw logsError;
 
-  if (breaksError) throw breaksError;
+    // Obtener breaks
+    const { data: breaks, error: breaksError } = await supabase
+      .from('work_breaks')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('break_start', { ascending: true });
 
-  return {
-    total_duration_ms: ticket?.work_duration_ms || 0,
-    active_duration_ms: ticket?.active_duration_ms || 0,
-    paused_duration_ms: ticket?.paused_duration_ms || 0,
-    break_count: (breaks || []).length,
-    events: logs || [],
-    breaks: breaks || [],
-  };
+    if (breaksError) throw breaksError;
+
+    return {
+      total_duration_ms: ticket?.work_duration_ms || 0,
+      active_duration_ms: ticket?.active_duration_ms || 0,
+      paused_duration_ms: ticket?.paused_duration_ms || 0,
+      break_count: (breaks || []).length,
+      events: logs || [],
+      breaks: breaks || [],
+    };
+  } catch (err) {
+    console.error('Error in getWorkTimeSummary:', err);
+    // Retornar valores por defecto en caso de error
+    return {
+      total_duration_ms: 0,
+      active_duration_ms: 0,
+      paused_duration_ms: 0,
+      break_count: 0,
+      events: [],
+      breaks: [],
+    };
+  }
 }
 
 /**

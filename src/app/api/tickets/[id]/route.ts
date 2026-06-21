@@ -36,10 +36,10 @@ function isValidStateTransition(currentStatus: string, newStatus: string): boole
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ticketId = params.id;
+    const { id: ticketId } = await params;
     const body = await request.json();
 
     // Validación básica del payload
@@ -115,10 +115,10 @@ export async function PATCH(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ticketId = params.id;
+    const { id: ticketId } = await params;
     
     // En una app real, traerías desde Supabase:
     // const { data, error } = await supabase
