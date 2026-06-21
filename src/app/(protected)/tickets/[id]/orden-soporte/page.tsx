@@ -236,7 +236,7 @@ export default function OrdenSoportePage() {
     }
   })();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     const rating = ratingInputRef.current?.value ?? "0";
     if (!rating || rating === "0") {
       e.preventDefault();
@@ -245,6 +245,9 @@ export default function OrdenSoportePage() {
       return;
     }
     setRatingError(false);
+
+    // Prevenir el envío automático a Zoho mientras procesamos
+    e.preventDefault();
 
     // Capturar campos del formulario sincrónicamente antes del re-render
     const form = e.currentTarget;
@@ -282,24 +285,24 @@ export default function OrdenSoportePage() {
       })
     };
 
-    // Guardar en Supabase/localStorage (best-effort)
     try {
+      // PASO 1: Guardar orden de trabajo en BD
       await addWorkOrder(orderData);
-    } catch (err) {
-      console.error("Error al guardar orden de trabajo:", err);
-    }
-    
-    // CRÍTICO: Actualizar estado del ticket a completado
-    try {
+      
+      // PASO 2: Actualizar estado del ticket a "completed"
+      // Esto hace que desaparezca automáticamente de "Mis Tickets Asignados"
       await editTicket(ticket.id, { status: "completed" });
-      // Asegurar que refreshData() se complete
-      await refreshData();
-    } catch (err) {
-      console.error("Error al completar ticket:", err);
+      
+      // PASO 3: Si todo fue exitoso, enviar a Zoho en nueva pestaña
+      // Enviar a Zoho en nueva pestaña (sin esperar respuesta)
+      window.open(form.action, "_blank");
+      
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Error al completar la orden de trabajo:", error);
+      // Mostrar error al usuario
+      alert(`Error: ${error instanceof Error ? error.message : "No se pudo completar la orden"}. Por favor, intenta de nuevo.`);
     }
-
-    setSubmitted(true);
-    // El form continúa enviándose a Zoho en una nueva pestaña (target="_blank")
   };
 
   if (submitted) {
