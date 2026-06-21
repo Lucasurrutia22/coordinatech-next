@@ -120,6 +120,14 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
+  // IMPORTANTE: Actualizar localStorage PRIMERO para cambio optimista
+  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  const updated = current.map((item) =>
+    item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
+  );
+  saveLocal(TICKETS_KEY, updated);
+
+  // LUEGO intentar Supabase
   if (hasSupabaseEnv && supabase) {
     try {
       // Filtrar solo campos que existen en la tabla de Supabase
@@ -129,19 +137,14 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
       );
       
       const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
-      if (!error) {
-        return;
+      if (error) {
+        console.warn("Error updating ticket in Supabase:", error);
       }
     } catch (err) {
-      console.warn("Supabase updateTicket falló, actualizando localStorage:", err);
+      console.warn("Supabase updateTicket falló:", err);
+      // Ya está actualizado en localStorage, no hay nada más que hacer
     }
   }
-
-  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  const updated = current.map((item) =>
-    item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
-  );
-  saveLocal(TICKETS_KEY, updated);
 }
 
 export async function getTicketById(id: string): Promise<Ticket | undefined> {
