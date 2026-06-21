@@ -106,7 +106,7 @@ export default function OrdenSoportePage() {
       // PASO 3: Mostrar confirmación
       setSubmitted(true);
 
-      // PASO 4: Después de 1.5s, abrir Zoho con parámetros prefilled
+      // PASO 4: Después de 1.5s, abrir Zoho en ventana nueva y redirigir a /tickets
       setTimeout(() => {
         // Construir URL de Zoho con campos pre-rellenados
         const clientName = (formData.get("cliente_nombre") as string) || "";
@@ -121,13 +121,13 @@ export default function OrdenSoportePage() {
           clientLocal
         );
         
-        // Abrir Zoho con pre-relleno
-        window.location.href = zohoUrlWithPrefill;
+        // Abrir Zoho en ventana/pestaña NUEVA (sin bloquear CoordinaTech)
+        window.open(zohoUrlWithPrefill, "_blank", "width=1024,height=800");
         
-        // Luego redirigir a /tickets (aunque Zoho habrá cambiado la página)
+        // Luego redirigir a /tickets automáticamente después de 1s
         setTimeout(() => {
           router.replace("/tickets");
-        }, 2000);
+        }, 1000);
       }, 1500);
     } catch (error) {
       console.error("Error al completar orden:", error);
@@ -143,9 +143,15 @@ export default function OrdenSoportePage() {
       <div className="stack-lg" style={{ maxWidth: 640, margin: "0 auto" }}>
         <article className="panel" style={{ textAlign: "center", padding: "3rem 2rem" }}>
           <CheckCircle2 size={56} color="var(--brand)" style={{ marginBottom: "1rem" }} />
-          <h2 style={{ margin: "0 0 0.5rem" }}>Orden completada</h2>
+          <h2 style={{ margin: "0 0 0.5rem" }}>¡Orden completada!</h2>
           <p className="muted" style={{ lineHeight: 1.6, marginBottom: "1.5rem" }}>
-            Se guardó tu orden de soporte. Serás redirigido al formulario Zoho en breve...
+            ✓ Se guardó tu orden de soporte en CoordinaTech
+            <br />
+            <br />
+            📱 <strong>Se abrirá el formulario Zoho en una ventana nueva</strong> para que completes los detalles técnicos, calificación y firma.
+            <br />
+            <br />
+            Serás redirigido a tu bandeja de tickets automáticamente...
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
             <Loader size={16} style={{ animation: "spin 1s linear infinite" }} />
