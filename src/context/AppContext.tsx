@@ -40,6 +40,7 @@ interface AppContextType {
   // Métodos de filtrado por rol
   getVisibleTickets: () => Ticket[];
   getAvailableTickets: () => Ticket[];  // Tickets sin asignar (para que técnicos acepten)
+  getCompletedTickets: () => Ticket[];  // Historial: tickets completados/no completados
   // Métodos de SLA
   getSLACompliance: () => ReturnType<typeof calculateSLACompliance>;
   getTicketsBySLAStatus: () => ReturnType<typeof groupTicketsBySLAStatus>;
@@ -301,6 +302,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!user || user.role === "admin") return [];
         // Tickets PENDING sin técnico asignado, no archivados
         return tickets.filter((t) => (!t.technician_id || t.technician_id === "") && t.status === "pending" && !t.is_archived);
+      },
+      // Historial: Tickets completados/no completados del técnico
+      getCompletedTickets: () => {
+        if (!user) return [];
+        if (user.role === "admin") {
+          // Admin ve todos los completados/no completados
+          return tickets.filter((t) => ["completed", "not_completed"].includes(t.status) && !t.is_archived);
+        }
+        // Técnico ve solo sus tickets completados/no completados
+        return tickets.filter((t) => t.technician_id === user.id && ["completed", "not_completed"].includes(t.status) && !t.is_archived);
       },
       // Cálculo de SLA
       getSLACompliance: () => calculateSLACompliance(tickets),

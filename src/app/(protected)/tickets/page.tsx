@@ -12,10 +12,11 @@ import { useSLAAlerts } from "@/hooks/useSLAAlerts";
 import { TICKET_TYPE_META } from "@/types/domain";
 
 export default function TicketsPage() {
-  const { getVisibleTickets, getAvailableTickets, technicians, user, editTicket, tickets } = useAppContext();
+  const { getVisibleTickets, getAvailableTickets, getCompletedTickets, technicians, user, editTicket, tickets } = useAppContext();
   useSLAAlerts(tickets);
   const visibleTickets = getVisibleTickets();
   const availableTickets = getAvailableTickets();
+  const completedTickets = getCompletedTickets();
   const [accepting, setAccepting] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<string | null>(null);
 
@@ -168,8 +169,8 @@ export default function TicketsPage() {
           <h2 style={{ marginBottom: 0 }}>Tickets {user?.role === "admin" ? "(Administrador)" : "(Mis tickets)"}</h2>
           <p className="muted">
             {user?.role === "admin" 
-              ? `${visibleTickets.length} ticket${visibleTickets.length !== 1 ? "s" : ""} registrados`
-              : `${visibleTickets.length} asignado${visibleTickets.length !== 1 ? "s" : ""} | ${availableTickets.length} disponible${availableTickets.length !== 1 ? "s" : ""}`}
+              ? `${visibleTickets.length} ticket${visibleTickets.length !== 1 ? "s" : ""} activo${visibleTickets.length !== 1 ? "s" : ""} | ${completedTickets.length} completado${completedTickets.length !== 1 ? "s" : ""}`
+              : `${visibleTickets.length} asignado${visibleTickets.length !== 1 ? "s" : ""} | ${availableTickets.length} disponible${availableTickets.length !== 1 ? "s" : ""} | ${completedTickets.length} completado${completedTickets.length !== 1 ? "s" : ""}`}
           </p>
         </div>
         {user?.role === "admin" && (
@@ -187,8 +188,21 @@ export default function TicketsPage() {
       {/* SECCIÓN 2: TICKETS DISPONIBLES (solo técnicos) */}
       {user?.role !== "admin" && <TicketTable tickets={availableTickets} title="📋 Tickets Disponibles para Aceptar" isAvailable={true} />}
 
+      {/* SECCIÓN 3: HISTORIAL DE COMPLETADOS (solo técnicos y admin) */}
+      {completedTickets.length > 0 && (
+        <div style={{ marginTop: "2rem" }}>
+          <h3 style={{ marginBottom: "1rem", fontSize: "1rem", fontWeight: 600, color: "var(--ink)" }}>
+            📋 Historial {user?.role === "admin" ? "de Completados" : "Mis Tickets Completados"}
+          </h3>
+          <p style={{ marginBottom: "1rem", fontSize: "0.85rem", color: "var(--muted)" }}>
+            {completedTickets.length} ticket{completedTickets.length !== 1 ? "s" : ""} completado{completedTickets.length !== 1 ? "s" : ""}
+          </p>
+          <TicketTable tickets={completedTickets} title="" />
+        </div>
+      )}
+
       {/* FALLBACK */}
-      {visibleTickets.length === 0 && availableTickets.length === 0 && (
+      {visibleTickets.length === 0 && availableTickets.length === 0 && completedTickets.length === 0 && (
         <p className="muted" style={{ padding: "1.5rem", textAlign: "center" }}>
           No hay tickets. {user?.role === "admin" ? "Crea el primero." : "Tu equipo no tiene tickets."}
         </p>
