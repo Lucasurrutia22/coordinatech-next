@@ -65,7 +65,6 @@ La aplicación estará disponible en: **http://localhost:3000**
 1. **Ingresa como Técnico:**
    - Email: `juan.perez@company.com`
    - Contraseña: `tech123`
-   - Código 2FA: `123123`
 
 2. **Abre un Ticket Asignado:**
    - Ve a "Tickets"
