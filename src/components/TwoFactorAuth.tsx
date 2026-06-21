@@ -289,18 +289,6 @@ export function TwoFactorAuth({ onVerify, onCancel, email, loading = false }: Tw
           Volver atrás
         </button>
       </form>
-
-      {/* Demo hint */}
-      <p style={{
-        fontSize: "0.8rem",
-        color: "#a0aec0",
-        marginTop: "1.5rem",
-        padding: "0.75rem",
-        background: "#edf2f7",
-        borderRadius: "6px",
-      }}>
-        💡 Código demo: 123123
-      </p>
     </div>
   );
 }
