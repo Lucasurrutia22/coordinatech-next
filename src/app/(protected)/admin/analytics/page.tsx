@@ -2,88 +2,90 @@
 
 import { AdminAnalyticsDashboard } from '@/components/AdminAnalyticsDashboard';
 import { useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, SlidersHorizontal } from 'lucide-react';
 
 export default function AdminAnalyticsPage() {
   const [days, setDays] = useState(30);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Panel de Análisis de Tiempos</h1>
-          <p className="text-gray-600 mt-1">
-            Monitoreo detallado de productividad y eficiencia de técnicos
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-gray-600" />
-          <select
-            value={days}
-            onChange={e => setDays(parseInt(e.target.value))}
-            className="font-medium text-gray-900 bg-transparent focus:outline-none"
-          >
-            <option value={7}>Últimos 7 días</option>
-            <option value={14}>Últimas 2 semanas</option>
-            <option value={30}>Últimos 30 días</option>
-            <option value={90}>Últimos 90 días</option>
-          </select>
-        </div>
-      </div>
+    <div className="stack-lg">
+      <section className="surface-card p-6 md:p-7">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="eyebrow">Centro de Operaciones</p>
+            <h1 className="editorial-title mt-2 text-3xl md:text-4xl text-[#111111]">
+              Dashboard KPI de Productividad
+            </h1>
+            <p className="mt-2 text-sm text-[#787774] max-w-2xl">
+              Vista ejecutiva de desempeño técnico, eficiencia operativa y señales de riesgo para
+              toma de decisiones de coordinación.
+            </p>
+          </div>
 
-      {/* Dashboard */}
+          <div className="surface-card flex items-center gap-3 px-4 py-3">
+            <div className="h-8 w-8 rounded-md bg-[#f5f3ee] text-[#111111] grid place-items-center border border-[#EAEAEA]">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="grid gap-0.5">
+              <span className="text-[11px] uppercase tracking-[0.08em] text-[#787774]">Periodo</span>
+              <select
+                value={days}
+                onChange={(e) => setDays(parseInt(e.target.value, 10))}
+                className="bg-transparent text-sm font-semibold text-[#111111] focus:outline-none"
+              >
+                <option value={7}>Ultimos 7 dias</option>
+                <option value={14}>Ultimas 2 semanas</option>
+                <option value={30}>Ultimos 30 dias</option>
+                <option value={90}>Ultimos 90 dias</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 text-xs text-[#787774]">
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>KPIs tacticos actualizados segun ventana temporal seleccionada.</span>
+        </div>
+      </section>
+
       <AdminAnalyticsDashboard days={days} />
 
-      {/* Info boxes */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">📊 Métrica de Eficiencia</h3>
-          <p className="text-sm text-blue-700">
-            La eficiencia se calcula como el porcentaje de tiempo activo vs tiempo total. Un 100%
-            indicaría trabajo sin pausas.
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="surface-card p-5">
+          <p className="eyebrow">Definicion KPI</p>
+          <h3 className="mt-2 text-base font-semibold text-[#111111]">Eficiencia Operativa</h3>
+          <p className="mt-2 text-sm text-[#787774]">
+            Porcentaje de tiempo activo sobre tiempo total de ejecucion por tecnico y periodo.
           </p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h3 className="font-semibold text-green-900 mb-2">✅ Tiempo Activo</h3>
-          <p className="text-sm text-green-700">
-            Es el tiempo desde el inicio del trabajo hasta el fin, descontando todas las pausas
-            registradas.
-          </p>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="font-semibold text-yellow-900 mb-2">⏸️ Pausas Registradas</h3>
-          <p className="text-sm text-yellow-700">
-            Cada pausa registra la razón y duración exacta. Útil para auditoría y mejora continua.
-          </p>
-        </div>
-      </div>
 
-      {/* Instrucciones */}
-      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-lg p-6">
-        <h2 className="text-lg font-bold text-indigo-900 mb-4">📋 Cómo Usar Este Panel</h2>
-        <div className="space-y-3 text-sm text-indigo-800">
-          <p>
-            ✓ <strong>Selecciona el período:</strong> Elige entre 7, 14, 30 o 90 días para analizar
-            diferentes períodos.
-          </p>
-          <p>
-            ✓ <strong>Haz clic en un técnico:</strong> Para ver sus estadísticas detalladas en una
-            tarjeta expandida.
-          </p>
-          <p>
-            ✓ <strong>Analiza eficiencia:</strong> Identifica a los técnicos con mejor/peor
-            eficiencia.
-          </p>
-          <p>
-            ✓ <strong>Monitorea pausas:</strong> Verifica si las pausas son razonables o si hay
-            patrones.
-          </p>
-          <p>
-            ✓ <strong>Detecta anomalías:</strong> Busca técnicos con tiempo promedio muy alto o
-            bajo.
+        <div className="surface-card p-5">
+          <p className="eyebrow">Definicion KPI</p>
+          <h3 className="mt-2 text-base font-semibold text-[#111111]">Tiempo Activo</h3>
+          <p className="mt-2 text-sm text-[#787774]">
+            Duracion efectiva de trabajo descontando pausas registradas y tiempos de inactividad.
           </p>
         </div>
-      </div>
+
+        <div className="surface-card p-5">
+          <p className="eyebrow">Definicion KPI</p>
+          <h3 className="mt-2 text-base font-semibold text-[#111111]">Pausas Registradas</h3>
+          <p className="mt-2 text-sm text-[#787774]">
+            Conteo y duracion de pausas por tecnico para detectar oportunidades de mejora continua.
+          </p>
+        </div>
+      </section>
+
+      <section className="surface-card p-6">
+        <p className="eyebrow">Uso recomendado</p>
+        <h2 className="mt-2 text-xl font-semibold text-[#111111]">Lectura rapida para decisiones</h2>
+        <div className="mt-4 grid gap-2 text-sm text-[#2f3437]">
+          <p><strong>1.</strong> Define el periodo para evaluar tendencia semanal, mensual o trimestral.</p>
+          <p><strong>2.</strong> Prioriza tecnicos con estado Critico o Alerta en eficiencia.</p>
+          <p><strong>3.</strong> Contrasta pausas por ticket con tiempo medio de ciclo.</p>
+          <p><strong>4.</strong> Usa el detalle por tecnico para plan de coaching y balance de carga.</p>
+        </div>
+      </section>
     </div>
   );
 }

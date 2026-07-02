@@ -1,9 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { calculateSLA } from '@/lib/slaCalculations';
-import { TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Gauge,
+  ShieldCheck,
+  TimerReset,
+} from 'lucide-react';
+import { MetricCard } from '@/components/MetricCard';
 
 interface SLAMetric {
   id: string;
@@ -34,32 +42,79 @@ interface SLAStats {
   averageSLA: number;
 }
 
+function getSLAState(percent: number) {
+  if (percent >= 70) {
+    return {
+      label: 'Estable',
+      text: '#346538',
+      bg: '#edf3ec',
+      border: '#c7dbc3',
+      trend: 'up' as const,
+    };
+  }
+
+  if (percent >= 50) {
+    return {
+      label: 'Alerta',
+      text: '#956400',
+      bg: '#fbf3db',
+      border: '#f0dea6',
+      trend: 'neutral' as const,
+    };
+  }
+
+  return {
+    label: 'Critico',
+    text: '#9f2f2d',
+    bg: '#fdebec',
+    border: '#f3c1c1',
+    trend: 'down' as const,
+  };
+}
+
+function toPercent(part: number, total: number) {
+  if (total <= 0) return 0;
+  return (part / total) * 100;
+}
+
 export function SLAMetricsPanel() {
   const [metrics, setMetrics] = useState<SLAMetric[]>([]);
   const [stats, setStats] = useState<SLAStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadMetrics();
-    const interval = setInterval(loadMetrics, 30000); // Actualizar cada 30s
+    void loadMetrics();
+    const interval = setInterval(() => {
+      void loadMetrics();
+    }, 30000);
+
     return () => clearInterval(interval);
   }, []);
 
   async function loadMetrics() {
     try {
-      const { data: tickets, error } = await supabase
+      setError(null);
+      const { data: tickets, error: queryError } = await supabase
         .from('tickets')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (queryError) throw queryError;
 
       if (!tickets) {
         setMetrics([]);
+        setStats({
+          totalTickets: 0,
+          criticalCount: 0,
+          warningCount: 0,
+          okCount: 0,
+          completedCount: 0,
+          averageSLA: 0,
+        });
         return;
       }
 
-      // Calcular SLA para cada ticket
       const slaMetrics: SLAMetric[] = (tickets as TicketData[]).map((ticket: TicketData) => {
         const sla = calculateSLA(new Date(ticket.created_at), ticket.priority, ticket.status);
         return {
@@ -76,14 +131,14 @@ export function SLAMetricsPanel() {
 
       setMetrics(slaMetrics);
 
-      // Calcular estadísticas
-      const criticalCount = slaMetrics.filter(m => m.sla_status === 'critical').length;
-      const warningCount = slaMetrics.filter(m => m.sla_status === 'warning').length;
-      const okCount = slaMetrics.filter(m => m.sla_status === 'ok').length;
-      const completedCount = slaMetrics.filter(m => m.sla_status === 'completed').length;
-      const averageSLA = slaMetrics.length > 0
-        ? slaMetrics.reduce((sum, m) => sum + m.sla_percent, 0) / slaMetrics.length
-        : 0;
+      const criticalCount = slaMetrics.filter((item) => item.sla_status === 'critical').length;
+      const warningCount = slaMetrics.filter((item) => item.sla_status === 'warning').length;
+      const okCount = slaMetrics.filter((item) => item.sla_status === 'ok').length;
+      const completedCount = slaMetrics.filter((item) => item.sla_status === 'completed').length;
+      const averageSLA =
+        slaMetrics.length > 0
+          ? slaMetrics.reduce((sum, item) => sum + item.sla_percent, 0) / slaMetrics.length
+          : 0;
 
       setStats({
         totalTickets: slaMetrics.length,
@@ -95,205 +150,215 @@ export function SLAMetricsPanel() {
       });
     } catch (err) {
       console.error('Error loading SLA metrics:', err);
+      setError('No fue posible cargar las metricas SLA.');
     } finally {
       setLoading(false);
     }
   }
 
+  const topCritical = useMemo(
+    () => metrics.filter((item) => item.sla_status === 'critical').slice(0, 6),
+    [metrics]
+  );
+
   if (loading) {
-    return <div className="animate-pulse bg-gray-200 h-96 rounded-lg"></div>;
+    return <div className="surface-card h-96 animate-pulse" />;
   }
 
-  if (!stats) {
+  if (error) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <p className="text-yellow-800">No hay datos de SLA disponibles</p>
+      <div className="surface-card p-5 text-sm text-[#9f2f2d] border-[#f3c1c1] bg-[#fdebec]">
+        {error}
       </div>
     );
   }
 
-  // Determinar color basado en porcentaje
-  const getSLAColor = (percent: number) => {
-    if (percent >= 70) return { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', badge: 'bg-green-600' };
-    if (percent >= 50) return { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', badge: 'bg-yellow-600' };
-    return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', badge: 'bg-red-600' };
-  };
+  if (!stats) {
+    return (
+      <div className="surface-card p-5 text-sm text-[#956400] border-[#f0dea6] bg-[#fbf3db]">
+        No hay datos SLA disponibles.
+      </div>
+    );
+  }
 
-  const overallColor = getSLAColor(stats.averageSLA);
+  const slaState = getSLAState(stats.averageSLA);
+  const criticalShare = toPercent(stats.criticalCount, stats.totalTickets);
+  const warningShare = toPercent(stats.warningCount, stats.totalTickets);
+  const stableShare = toPercent(stats.okCount + stats.completedCount, stats.totalTickets);
+  const gapToTarget = stats.averageSLA - 95;
 
   return (
-    <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {/* Total Tickets */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-gray-600 font-medium mb-2">TOTAL TICKETS</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.totalTickets}</p>
-        </div>
+    <div className="stack-lg">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <MetricCard
+          title="Cumplimiento SLA"
+          value={`${stats.averageSLA.toFixed(1)}%`}
+          hint={`Estado ${slaState.label}`}
+          icon={<Gauge size={18} />}
+          trend={slaState.trend}
+          accent={slaState.text}
+          className="h-full"
+        />
 
-        {/* Critical */}
-        <div className="bg-red-50 border border-red-300 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-red-700 font-medium mb-2">🔴 CRÍTICO</p>
-          <p className="text-3xl font-bold text-red-600">{stats.criticalCount}</p>
-          <p className="text-xs text-red-600 mt-1">{((stats.criticalCount / stats.totalTickets) * 100).toFixed(1)}%</p>
-        </div>
+        <MetricCard
+          title="Tickets Totales"
+          value={stats.totalTickets.toLocaleString('es-ES')}
+          hint="Base activa del monitoreo"
+          icon={<Clock3 size={18} />}
+          trend="neutral"
+          accent="#1f6c9f"
+          className="h-full"
+        />
 
-        {/* Warning */}
-        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-yellow-700 font-medium mb-2">⚠️ ALERTA</p>
-          <p className="text-3xl font-bold text-yellow-600">{stats.warningCount}</p>
-          <p className="text-xs text-yellow-600 mt-1">{((stats.warningCount / stats.totalTickets) * 100).toFixed(1)}%</p>
-        </div>
+        <MetricCard
+          title="En Critico"
+          value={stats.criticalCount.toLocaleString('es-ES')}
+          hint={`${criticalShare.toFixed(1)}% del total`}
+          icon={<AlertTriangle size={18} />}
+          trend={stats.criticalCount > 0 ? 'down' : 'up'}
+          accent="#9f2f2d"
+          className="h-full"
+        />
 
-        {/* OK */}
-        <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-blue-700 font-medium mb-2">✓ EN TIEMPO</p>
-          <p className="text-3xl font-bold text-blue-600">{stats.okCount}</p>
-          <p className="text-xs text-blue-600 mt-1">{((stats.okCount / stats.totalTickets) * 100).toFixed(1)}%</p>
-        </div>
+        <MetricCard
+          title="En Alerta"
+          value={stats.warningCount.toLocaleString('es-ES')}
+          hint={`${warningShare.toFixed(1)}% del total`}
+          icon={<TimerReset size={18} />}
+          trend={stats.warningCount > 0 ? 'neutral' : 'up'}
+          accent="#956400"
+          className="h-full"
+        />
 
-        {/* Completed */}
-        <div className="bg-green-50 border border-green-300 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-green-700 font-medium mb-2">✅ COMPLETADO</p>
-          <p className="text-3xl font-bold text-green-600">{stats.completedCount}</p>
-          <p className="text-xs text-green-600 mt-1">{((stats.completedCount / stats.totalTickets) * 100).toFixed(1)}%</p>
-        </div>
-      </div>
+        <MetricCard
+          title="Estables"
+          value={(stats.okCount + stats.completedCount).toLocaleString('es-ES')}
+          hint={`${stableShare.toFixed(1)}% del total`}
+          icon={<ShieldCheck size={18} />}
+          trend="up"
+          accent="#346538"
+          className="h-full"
+        />
 
-      {/* SLA Promedio - Barra Grande */}
-      <div className={`${overallColor.bg} border-2 ${overallColor.border} rounded-lg p-6`}>
-        <div className="flex items-center justify-between mb-4">
+        <MetricCard
+          title="Brecha vs Meta"
+          value={`${gapToTarget >= 0 ? '+' : ''}${gapToTarget.toFixed(1)}%`}
+          hint="Meta de referencia 95%"
+          icon={<CheckCircle2 size={18} />}
+          trend={gapToTarget >= 0 ? 'up' : 'down'}
+          accent="#1f6c9f"
+          className="h-full"
+        />
+      </section>
+
+      <section className="surface-card p-5">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600 mb-1">CUMPLIMIENTO SLA PROMEDIO</p>
-            <p className={`text-5xl font-bold ${overallColor.text}`}>
-              {stats.averageSLA.toFixed(1)}%
-            </p>
+            <p className="eyebrow">Semaforo operativo</p>
+            <h2 className="mt-1 text-lg font-semibold text-[#111111]">Estado global de servicio</h2>
           </div>
-          <div className="text-right">
-            {stats.averageSLA >= 70 && (
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-12 h-12 text-green-600" />
-                <p className="text-green-700 font-bold text-lg">ÓPTIMO</p>
-              </div>
-            )}
-            {stats.averageSLA >= 50 && stats.averageSLA < 70 && (
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-12 h-12 text-yellow-600" />
-                <p className="text-yellow-700 font-bold text-lg">ALERTA</p>
-              </div>
-            )}
-            {stats.averageSLA < 50 && (
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-12 h-12 text-red-600" />
-                <p className="text-red-700 font-bold text-lg">CRÍTICO</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Barra de progreso */}
-        <div className="w-full bg-gray-300 rounded-full h-8 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-300 flex items-center justify-center font-bold text-white text-sm ${overallColor.badge}`}
-            style={{ width: `${Math.min(stats.averageSLA, 100)}%` }}
+          <span
+            className="status-chip"
+            style={{
+              color: slaState.text,
+              backgroundColor: slaState.bg,
+              border: `1px solid ${slaState.border}`,
+            }}
           >
-            {stats.averageSLA.toFixed(1)}%
-          </div>
+            {slaState.label}
+          </span>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-          <div className="text-center">
-            <p className="text-gray-600">Meta SLA</p>
-            <p className="font-bold text-gray-900">95%</p>
+        <div className="mt-4 h-3 rounded-full bg-[#eceae4] overflow-hidden">
+          <div
+            className="h-full transition-all duration-300"
+            style={{
+              width: `${Math.max(0, Math.min(stats.averageSLA, 100))}%`,
+              backgroundColor: slaState.text,
+            }}
+          />
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-[#2f3437]">
+          <div className="rounded-lg border border-[#EAEAEA] bg-[#fdfdfc] p-3">
+            <p className="m-0"><strong>Meta:</strong> 95% cumplimiento.</p>
           </div>
-          <div className="text-center">
-            <p className="text-gray-600">Diferencia</p>
-            <p className={`font-bold ${stats.averageSLA >= 95 ? 'text-green-600' : 'text-red-600'}`}>
-              {(stats.averageSLA - 95).toFixed(1)}%
-            </p>
+          <div className="rounded-lg border border-[#EAEAEA] bg-[#fdfdfc] p-3">
+            <p className="m-0"><strong>Gap actual:</strong> {gapToTarget.toFixed(1)} puntos.</p>
           </div>
-          <div className="text-center">
-            <p className="text-gray-600">Tendencia</p>
-            <p className={`font-bold ${stats.averageSLA >= 70 ? 'text-green-600' : stats.averageSLA >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-              {stats.averageSLA >= 70 ? '↑ Buena' : stats.averageSLA >= 50 ? '→ Media' : '↓ Baja'}
-            </p>
+          <div className="rounded-lg border border-[#EAEAEA] bg-[#fdfdfc] p-3">
+            <p className="m-0"><strong>Refresco:</strong> datos cada 30 segundos.</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Distribución de Estado */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <p className="text-xs text-gray-600 font-medium mb-3">Distribución por Estado</p>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Crítico</span>
-              <div className="w-20 bg-gray-200 rounded h-2">
-                <div className="bg-red-600 h-2 rounded" style={{ width: `${stats.totalTickets > 0 ? (stats.criticalCount / stats.totalTickets) * 100 : 0}%` }}></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Alerta</span>
-              <div className="w-20 bg-gray-200 rounded h-2">
-                <div className="bg-yellow-600 h-2 rounded" style={{ width: `${stats.totalTickets > 0 ? (stats.warningCount / stats.totalTickets) * 100 : 0}%` }}></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">En Tiempo</span>
-              <div className="w-20 bg-gray-200 rounded h-2">
-                <div className="bg-blue-600 h-2 rounded" style={{ width: `${stats.totalTickets > 0 ? (stats.okCount / stats.totalTickets) * 100 : 0}%` }}></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Completado</span>
-              <div className="w-20 bg-gray-200 rounded h-2">
-                <div className="bg-green-600 h-2 rounded" style={{ width: `${stats.totalTickets > 0 ? (stats.completedCount / stats.totalTickets) * 100 : 0}%` }}></div>
-              </div>
-            </div>
-          </div>
+      <section className="surface-card overflow-hidden">
+        <div className="border-b border-[#EAEAEA] px-5 py-4 bg-[#FBFBFA]">
+          <p className="eyebrow">Prioridad inmediata</p>
+          <h2 className="mt-1 text-lg font-semibold text-[#111111]">
+            Tickets en estado Critico
+          </h2>
         </div>
-      </div>
 
-      {/* Tabla de Tickets Críticos */}
-      {stats.criticalCount > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-          <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-            <h3 className="font-bold text-red-900 flex items-center gap-2">
-              🔴 {stats.criticalCount} TICKETS EN ESTADO CRÍTICO
-            </h3>
-          </div>
+        {topCritical.length === 0 ? (
+          <div className="p-5 text-sm text-[#346538]">No hay tickets en estado critico.</div>
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full min-w-[860px]">
+              <thead className="border-b border-[#EAEAEA] bg-white">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">DESCRIPCIÓN</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">CLIENTE</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">PRIORIDAD</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">SLA %</th>
+                  <th className="px-5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-[#787774]">Descripcion</th>
+                  <th className="px-5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-[#787774]">Cliente</th>
+                  <th className="px-5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-[#787774]">Prioridad</th>
+                  <th className="px-5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-[#787774]">SLA</th>
+                  <th className="px-5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-[#787774]">Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {metrics.filter(m => m.sla_status === 'critical').slice(0, 5).map(metric => (
-                  <tr key={metric.id} className="hover:bg-red-50">
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">{metric.description.substring(0, 40)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{metric.client_name}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        metric.priority === 'high' ? 'bg-red-100 text-red-800' :
-                        metric.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {metric.priority.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-red-600">{metric.sla_percent.toFixed(1)}%</td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-[#EAEAEA] bg-white">
+                {topCritical.map((metric) => {
+                  const priorityColor =
+                    metric.priority === 'high'
+                      ? { text: '#9f2f2d', bg: '#fdebec', border: '#f3c1c1' }
+                      : metric.priority === 'medium'
+                        ? { text: '#956400', bg: '#fbf3db', border: '#f0dea6' }
+                        : { text: '#1f6c9f', bg: '#e1f3fe', border: '#b8dff5' };
+
+                  return (
+                    <tr key={metric.id} className="hover:bg-[#fbfbfa] transition-colors">
+                      <td className="px-5 py-4 text-sm font-medium text-[#111111]">
+                        {metric.description.length > 60
+                          ? `${metric.description.slice(0, 60)}...`
+                          : metric.description}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-[#2f3437]">{metric.client_name}</td>
+                      <td className="px-5 py-4 text-sm">
+                        <span
+                          className="status-chip"
+                          style={{
+                            color: priorityColor.text,
+                            backgroundColor: priorityColor.bg,
+                            border: `1px solid ${priorityColor.border}`,
+                          }}
+                        >
+                          {metric.priority}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-sm font-semibold text-[#9f2f2d]">
+                        {metric.sla_percent.toFixed(1)}%
+                      </td>
+                      <td className="px-5 py-4 text-sm">
+                        <span className="status-chip" style={{ color: '#9f2f2d', backgroundColor: '#fdebec', border: '1px solid #f3c1c1' }}>
+                          Critico
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </section>
     </div>
   );
 }
