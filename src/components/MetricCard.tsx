@@ -22,25 +22,27 @@ export function MetricCard({
   // Support both old and new prop names
   const cardTitle = title || label;
   const cardHint = hint || trendValue;
+  const trendClass =
+    trend === 'up'
+      ? 'text-emerald-700'
+      : trend === 'down'
+        ? 'text-rose-700'
+        : 'text-stone-500';
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <div className="bg-white rounded-xl border border-[#EAEAEA] p-5">
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-600">{cardTitle}</h3>
+        <h3 className="text-sm font-medium text-stone-600">{cardTitle}</h3>
         <div 
-          className="p-2 rounded-lg" 
-          style={accent ? { backgroundColor: accent + "22", color: accent } : { backgroundColor: "#eff6ff", color: "#0ea4e9" }}
+          className="p-2 rounded-md"
+          style={accent ? { backgroundColor: accent + '22', color: accent } : { backgroundColor: '#F7F6F3', color: '#2F3437' }}
         >
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+      <p className="text-2xl font-semibold text-stone-900 mb-1">{value}</p>
       {cardHint && (
-        <p className={`text-xs font-medium ${
-          trend === 'up' ? 'text-green-600' :
-          trend === 'down' ? 'text-red-600' :
-          'text-gray-500'
-        }`}>
+        <p className={`text-xs font-medium ${trendClass}`}>
           {cardHint}
         </p>
       )}

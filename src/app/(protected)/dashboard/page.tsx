@@ -74,8 +74,8 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Cargando dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-stone-300 border-t-stone-700"></div>
+          <p className="mt-4 text-stone-600">Cargando dashboard...</p>
         </div>
       </div>
     );
@@ -84,19 +84,21 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <p className="text-red-800">{error}</p>
+        <div className="bg-white border border-rose-200 rounded-xl p-6 max-w-xl">
+          <p className="text-xs uppercase tracking-wide text-rose-700 mb-2">Error de carga</p>
+          <p className="text-rose-900">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Panel de Control</h1>
-        <p className="text-gray-600 mt-1">Monitoreo en tiempo real de SLAs y operaciones</p>
+        <p className="text-[11px] uppercase tracking-[0.12em] text-stone-500 mb-2">Centro de Operaciones</p>
+        <h1 className="text-3xl font-semibold text-stone-900">Panel de Control</h1>
+        <p className="text-stone-600 mt-1">Monitoreo en tiempo real de SLAs y operaciones</p>
       </div>
 
       {/* KPIs */}
@@ -104,31 +106,32 @@ export default function DashboardPage() {
 
       {/* Alertas críticas */}
       {criticalTickets.length > 0 && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
           <div className="flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+            <AlertCircle className="w-6 h-6 text-rose-700 flex-shrink-0 mt-1" />
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-red-800 flex items-center gap-2">
-                <span className="bg-red-600 text-white px-2 py-0.5 rounded-full text-sm">
+              <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+                <span className="bg-rose-50 border border-rose-200 text-rose-800 px-2 py-0.5 rounded-md text-sm">
                   {criticalTickets.length}
                 </span>
                 Alerta{criticalTickets.length > 1 ? 's' : ''} SLA Crítica{criticalTickets.length > 1 ? 's' : ''}
+                <span className="text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-md border border-rose-200 bg-rose-50 text-rose-800">Estado Critico</span>
               </h2>
-              <p className="text-red-700 text-sm mt-1">
+              <p className="text-stone-600 text-sm mt-1">
                 Tickets a menos del 15% de su tiempo SLA. Requieren acción inmediata.
               </p>
 
               {/* Lista de tickets críticos */}
               <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
                 {criticalTickets.map((alert, idx) => (
-                  <div key={idx} className="bg-white border border-red-100 rounded p-3 flex items-center justify-between">
+                  <div key={idx} className="bg-[#FBFBFA] border border-[#EAEAEA] rounded-lg p-3 flex items-center justify-between">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">{alert.description}</p>
+                      <p className="text-sm font-medium text-stone-900 truncate">{alert.description}</p>
                       <SLAProgressBar percentRemaining={alert.percentRemaining} />
                     </div>
                     <div className="ml-4 text-right">
-                      <p className="text-sm font-bold text-red-600">{alert.hoursRemaining}h</p>
-                      <p className="text-xs text-gray-600">{alert.percentRemaining.toFixed(0)}% SLA</p>
+                      <p className="text-sm font-semibold text-rose-700">{alert.hoursRemaining}h</p>
+                      <p className="text-xs text-stone-600">{alert.percentRemaining.toFixed(0)}% SLA</p>
                     </div>
                   </div>
                 ))}
@@ -139,14 +142,27 @@ export default function DashboardPage() {
       )}
 
       {/* Tickets próximos a vencer */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-blue-900">Monitoreo de SLAs en Tiempo Real</h2>
+          <TrendingUp className="w-5 h-5 text-stone-700" />
+          <h2 className="text-lg font-semibold text-stone-900">Monitoreo de SLAs en Tiempo Real</h2>
         </div>
-        <p className="text-sm text-blue-700">
-          El sistema evalúa automáticamente el cumplimiento de niveles de servicio. Las alertas semafóricas se actualizan cada 30 segundos.
-          Los tickets en estado crítico (rojo) requieren intervención inmediata para evitar multas por incumplimiento.
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-emerald-800">Estado Estable</p>
+            <p className="text-xs text-emerald-900">Cumplimiento dentro de objetivo.</p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-amber-800">Estado Alerta</p>
+            <p className="text-xs text-amber-900">Riesgo de desvio, requiere seguimiento.</p>
+          </div>
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-rose-800">Estado Critico</p>
+            <p className="text-xs text-rose-900">Intervencion inmediata para evitar incumplimiento.</p>
+          </div>
+        </div>
+        <p className="text-sm text-stone-600 mt-4">
+          Actualizacion automatica cada 30 segundos. Estados definidos con texto, icono y color para mejorar lectura y accesibilidad.
         </p>
       </div>
     </div>
