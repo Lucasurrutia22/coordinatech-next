@@ -1,35 +1,76 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+
+  if (!origin || !host) {
+    return true;
+  }
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 /**
  * POST /api/send-email
  * Envía un email con la copia de la orden de trabajo
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { to, subject, htmlContent, textContent, attachments } = body;
+    const to = typeof body?.to === "string" ? body.to.trim() : "";
+    const subject = typeof body?.subject === "string" ? body.subject.trim() : "";
+    const htmlContent = typeof body?.htmlContent === "string" ? body.htmlContent : "";
+    const textContent = typeof body?.textContent === "string" ? body.textContent : "";
+    const content = htmlContent || textContent;
 
     // Validar campos requeridos
-    if (!to || !subject) {
+    if (!to || !subject || !content) {
       return NextResponse.json(
-        { error: "Missing required fields: to, subject" },
+        { error: "Missing required fields: to, subject, htmlContent/textContent" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidEmail(to)) {
+      return NextResponse.json(
+        { error: "Invalid recipient email" },
+        { status: 400 }
+      );
+    }
+
+    if (Array.isArray(body?.attachments) && body.attachments.length > 10) {
+      return NextResponse.json(
+        { error: "Too many attachments. Maximum allowed: 10" },
         { status: 400 }
       );
     }
 
     // Opción 1: Usar Resend (si está configurado)
     if (process.env.RESEND_API_KEY) {
-      return await sendViaResend(to, subject, htmlContent || textContent);
+      return await sendViaResend(to, subject, content);
     }
 
     // Opción 2: Usar SendGrid (si está configurado)
     if (process.env.SENDGRID_API_KEY) {
-      return await sendViaSendGrid(to, subject, htmlContent || textContent);
+      return await sendViaSendGrid(to, subject, content);
     }
 
     // Opción 3: Usar Gmail SMTP (si está configurado)
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
-      return await sendViaGmailSMTP(to, subject, htmlContent || textContent);
+      return await sendViaGmailSMTP(to, subject, content);
     }
 
     // Si no hay configuración, devolver un error
@@ -42,7 +83,6 @@ export async function POST(request: NextRequest) {
       console.log("[send-email] DEV MODE - Email logged instead of sent");
       console.log(`To: ${to}`);
       console.log(`Subject: ${subject}`);
-      console.log(`Content: ${htmlContent || textContent}`);
       return NextResponse.json(
         {
           success: true,

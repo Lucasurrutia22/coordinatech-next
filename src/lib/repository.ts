@@ -124,11 +124,7 @@ function dedupeTickets(tickets: Ticket[]): Ticket[] {
 export async function getTickets(): Promise<Ticket[]> {
   // Prioridad: retornar almacenamiento local como fuente de verdad.
   const localTickets = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  
-  console.log("🔧 DEBUG getTickets(): Cargado localTickets con", localTickets.length, "tickets");
-  const st008 = localTickets.find(t => t.id === 'ST-008');
-  if (st008) console.log("🔧 DEBUG getTickets(): ST-008 status en almacenamiento local =", st008.status);
-  
+
   // Si tenemos tickets en almacenamiento local y Supabase no esta disponible, usar almacenamiento local.
   if (!hasSupabaseEnv || !supabase) {
     return localTickets.map(enrichTicketWithSLA);
@@ -150,11 +146,7 @@ export async function getTickets(): Promise<Ticket[]> {
     if (!error && data && data.length > 0) {
       // Enriquecer datos de Supabase
       const supabaseTickets = (data as Record<string, unknown>[]).map(normalizeTicket);
-      
-      console.log("🔧 DEBUG getTickets(): Cargado de Supabase", supabaseTickets.length, "tickets");
-      const st008sup = supabaseTickets.find(t => t.id === 'ST-008');
-      if (st008sup) console.log("🔧 DEBUG getTickets(): ST-008 status en Supabase =", st008sup.status);
-      
+
       // Importante: solo actualizar almacenamiento local si hay tickets nuevos en Supabase.
       // (nunca sobrescribir cambios locales)
       const merged: Ticket[] = [];
@@ -172,18 +164,12 @@ export async function getTickets(): Promise<Ticket[]> {
 
       const deduped = dedupeTickets(merged);
 
-      console.log("🔧 DEBUG getTickets(): Merged tiene", merged.length, "tickets");
-      console.log("🔧 DEBUG getTickets(): Deduped tiene", deduped.length, "tickets");
-      
       // Solo actualizar almacenamiento local si hay tickets nuevos.
       const hasMergeChanges = JSON.stringify(deduped) !== JSON.stringify(localTickets);
       if (hasMergeChanges) {
-        console.log("🔧 DEBUG getTickets(): Actualizando almacenamiento local con tickets nuevos de Supabase");
         await saveLocal(TICKETS_KEY, deduped);
-      } else {
-        console.log("🔧 DEBUG getTickets(): NO actualizando almacenamiento local (sin cambios)");
       }
-      
+
       return deduped.map(enrichTicketWithSLA);
     }
   } catch (err) {
@@ -238,7 +224,6 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
   
   // Guardar inmediatamente en almacenamiento local.
   await saveLocal(TICKETS_KEY, updated);
-  console.log(`updateTicket: Actualizado ${id} en almacenamiento local, status=${payload.status}`);
 
   // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {
@@ -253,8 +238,6 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
       if (error) {
         console.warn(`updateTicket: Supabase fallo para ${id}:`, error);
         // No relanzar el error aqui: los cambios ya estan en almacenamiento local.
-      } else {
-        console.log(`updateTicket: ${id} actualizado exitosamente en Supabase`);
       }
     } catch (err) {
       console.warn(`updateTicket: Excepcion de Supabase para ${id}:`, err);

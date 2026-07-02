@@ -13,6 +13,18 @@
       "skillPath": "skills/caveman/SKILL.md",
       "computedHash": "b0e7741886c0c32270cedc1a2fc21c2879d90964d3ce00f24952de7064613404"
     },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
+    },
+    "fullstack-developer": {
+      "source": "shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "awesome_agent_skills/fullstack-developer/SKILL.md",
+      "computedHash": "92f6f4f9bbdde529237f1840d94c4269abb62ad1d5e41d9c76bd14266001cbe8"
+    },
     "kpi-dashboard-design": {
       "source": "wshobson/agents",
       "sourceType": "github",

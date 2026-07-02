@@ -48,7 +48,17 @@ interface AppContextType {
 }
 
 const SESSION_KEY = "coordinatech_session";
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+const ADMIN_NAME = process.env.NEXT_PUBLIC_ADMIN_NAME || "Administrator";
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+function isConfiguredAdminLogin(email: string, password: string): boolean {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    return false;
+  }
+  return email === ADMIN_EMAIL && password === ADMIN_PASSWORD;
+}
 
 function toId(prefix: string): string {
   return `${prefix}-${Math.floor(Math.random() * 100000)}`;
@@ -119,10 +129,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string, role: UserRole): Promise<boolean> => {
       if (role === "admin") {
-        if (email === "maria.gonzalez@company.com" && password === "admin123") {
+        if (isConfiguredAdminLogin(email, password)) {
           const nextUser: UserSession = {
             id: "ADMIN-001",
-            name: "Maria Gonzalez",
+            name: ADMIN_NAME,
             email,
             role,
           };

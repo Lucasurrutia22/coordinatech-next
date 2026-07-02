@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Grid3x3, Mail, Lock, Eye, EyeOff, ArrowRight, Users } from "lucide-react";
+import { Grid3x3, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { TwoFactorAuth } from "@/components/TwoFactorAuth";
 import { LoginRateLimiter, SessionTimeoutManager } from "@/lib/security";
@@ -12,18 +12,16 @@ import { UserRole } from "@/types/domain";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, technicians } = useAppContext();
-  const [email, setEmail] = useState("juan.perez@company.com");
-  const [password, setPassword] = useState("tech123");
+  const { login } = useAppContext();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [rateLimitMessage, setRateLimitMessage] = useState("");
-  
+
   // 2FA states
   const [show2FA, setShow2FA] = useState(false);
-  const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +33,6 @@ export default function LoginPage() {
 
       const remainingMs = await LoginRateLimiter.getRemainingTime();
       const remainingMin = Math.ceil(remainingMs / 1000 / 60);
-      setRateLimitMessage(`Demasiados intentos. Intenta de nuevo en ${remainingMin} minuto(s).`);
       setError("Has excedido el límite de intentos. Por favor espera antes de intentar de nuevo.");
     };
 
@@ -49,7 +46,6 @@ export default function LoginPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
-    setRateLimitMessage("");
 
     // Check rate limiting
     if (await LoginRateLimiter.isLimited()) {
@@ -60,17 +56,18 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    
+
     // Auto-detect role: admin email uses admin path, all others use tech path
-    const role: UserRole = email === "maria.gonzalez@company.com" ? "admin" : "tech";
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    const role: UserRole = adminEmail && email === adminEmail ? "admin" : "tech";
     const success = await login(email, password, role);
     setLoading(false);
-    
+
     if (!success) {
       await LoginRateLimiter.recordAttempt();
       const attempts = await LoginRateLimiter.getAttempts();
       const remainingAttempts = LoginRateLimiter.MAX_ATTEMPTS - (attempts?.count || 0);
-      
+
       setError(`Credenciales inválidas. Te quedan ${remainingAttempts} intento(s).`);
       return;
     }
@@ -78,23 +75,25 @@ export default function LoginPage() {
     // Mostrar 2FA
     await LoginRateLimiter.reset(); // Clear rate limit on successful login
     await SessionTimeoutManager.startSession(); // Start session timeout
-    setPendingRole(role);
     setShow2FA(true);
   };
 
   const handleVerify2FA = async (code: string) => {
-    // Código demo para pruebas
-    if (code !== "123123") {
-      throw new Error("Código incorrecto. Usa 123123 para pruebas.");
+    const expectedCode = process.env.NEXT_PUBLIC_DEMO_2FA_CODE || (process.env.NODE_ENV === "development" ? "123123" : "");
+    if (!expectedCode) {
+      throw new Error("Código 2FA no configurado. Define NEXT_PUBLIC_DEMO_2FA_CODE.");
     }
-    
+
+    if (code !== expectedCode) {
+      throw new Error("Código incorrecto.");
+    }
+
     // Si el código es correcto, redirect a la app
     router.replace("/");
   };
 
   const handleCancel2FA = () => {
     setShow2FA(false);
-    setPendingRole(null);
   };
 
   return (

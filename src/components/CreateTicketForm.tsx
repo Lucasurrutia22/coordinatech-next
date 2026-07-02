@@ -118,197 +118,143 @@ export function CreateTicketForm({ technicians = [] }: { technicians?: Array<{ i
 
   if (success) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-        <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
-        <h3 className="text-lg font-semibold text-green-800">Ticket creado exitosamente</h3>
-        <p className="text-green-700 text-sm mt-1">Redirigiendo...</p>
+      <div className="surface-card p-6 text-center max-w-2xl">
+        <Check className="w-8 h-8 text-[#346538] mx-auto mb-2" />
+        <h3 className="text-lg font-semibold text-[#111111]">Ticket creado</h3>
+        <p className="text-[#787774] text-sm mt-1">Redirigiendo a la bandeja de tickets.</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit} className="surface-card p-6 md:p-8 stack-lg max-w-4xl">
+      <div>
+        <p className="eyebrow">Nuevo ticket</p>
+        <h1 className="editorial-title text-3xl text-[#111111] mt-2">Registrar un trabajo</h1>
+        <p className="mt-2 text-sm text-[#787774] max-w-2xl">
+          Completa los datos del cliente y del servicio. La información debe ser clara para que el ticket entre a flujo sin retrabajo.
+        </p>
+      </div>
+
       {errors.general && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-red-700">{errors.general}</p>
+        <div className="flex items-start gap-3 rounded-xl border border-[#f3c1c1] bg-[#fdebec] p-4">
+          <AlertCircle className="w-5 h-5 text-[#9f2f2d] flex-shrink-0 mt-0.5" />
+          <p className="text-[#9f2f2d]">{errors.general}</p>
         </div>
       )}
 
-      {/* Nombre del cliente */}
-      <div>
-        <label htmlFor="client_name" className="block text-sm font-medium text-gray-700 mb-2">
-          Nombre del Cliente
-        </label>
-        <input
-          id="client_name"
-          name="client_name"
-          type="text"
-          value={formData.client_name}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.client_name 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-          placeholder="Nombre completo"
-        />
-        {errors.client_name && <p className="text-red-600 text-sm mt-1">{errors.client_name}</p>}
-      </div>
+      <div className="form-grid">
+        <div className="full">
+          <label htmlFor="client_name">Nombre del Cliente</label>
+          <input
+            id="client_name"
+            name="client_name"
+            type="text"
+            value={formData.client_name}
+            onChange={handleChange}
+            placeholder="Nombre completo"
+          />
+          {errors.client_name && <p className="text-[#9f2f2d] text-sm mt-1">{errors.client_name}</p>}
+        </div>
 
-      {/* Email del cliente */}
-      <div>
-        <label htmlFor="client_email" className="block text-sm font-medium text-gray-700 mb-2">
-          Email del Cliente
-        </label>
-        <input
-          id="client_email"
-          name="client_email"
-          type="email"
-          value={formData.client_email}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.client_email 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-          placeholder="correo@ejemplo.com"
-        />
-        {errors.client_email && <p className="text-red-600 text-sm mt-1">{errors.client_email}</p>}
-      </div>
+        <div>
+          <label htmlFor="client_email">Email del Cliente</label>
+          <input
+            id="client_email"
+            name="client_email"
+            type="email"
+            value={formData.client_email}
+            onChange={handleChange}
+            placeholder="correo@ejemplo.com"
+          />
+          {errors.client_email && <p className="text-[#9f2f2d] text-sm mt-1">{errors.client_email}</p>}
+        </div>
 
-      {/* Teléfono (opcional) */}
-      <div>
-        <label htmlFor="client_phone" className="block text-sm font-medium text-gray-700 mb-2">
-          Teléfono del Cliente (Opcional)
-        </label>
-        <input
-          id="client_phone"
-          name="client_phone"
-          type="tel"
-          value={formData.client_phone}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.client_phone 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-          placeholder="+56912345678"
-        />
-        {errors.client_phone && <p className="text-red-600 text-sm mt-1">{errors.client_phone}</p>}
-      </div>
+        <div>
+          <label htmlFor="client_phone">Teléfono del Cliente (Opcional)</label>
+          <input
+            id="client_phone"
+            name="client_phone"
+            type="tel"
+            value={formData.client_phone}
+            onChange={handleChange}
+            placeholder="+56912345678"
+          />
+          {errors.client_phone && <p className="text-[#9f2f2d] text-sm mt-1">{errors.client_phone}</p>}
+        </div>
 
-      {/* Descripción */}
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-          Descripción del Problema
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          rows={4}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 font-mono text-sm ${
-            errors.description 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-          placeholder="Describe el problema detalladamente (10-500 caracteres)"
-        />
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>{formData.description.length}/500</span>
-          {errors.description && <span className="text-red-600">{errors.description}</span>}
+        <div className="full">
+          <label htmlFor="description">Descripción del Problema</label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            rows={5}
+            placeholder="Describe el problema detalladamente (10-500 caracteres)"
+          />
+          <div className="flex justify-between text-xs text-[#787774] mt-1">
+            <span>{formData.description.length}/500</span>
+            {errors.description && <span className="text-[#9f2f2d]">{errors.description}</span>}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="priority">Prioridad</label>
+          <select
+            id="priority"
+            name="priority"
+            value={formData.priority}
+            onChange={handleChange}
+          >
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+          </select>
+          {errors.priority && <p className="text-[#9f2f2d] text-sm mt-1">{errors.priority}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="ticket_type">Tipo de Servicio</label>
+          <select
+            id="ticket_type"
+            name="ticket_type"
+            value={formData.ticket_type}
+            onChange={handleChange}
+          >
+            <option value="support">Soporte Técnico</option>
+            <option value="installation">Instalación</option>
+            <option value="removal">Remoción/Desmontaje</option>
+          </select>
+          {errors.ticket_type && <p className="text-[#9f2f2d] text-sm mt-1">{errors.ticket_type}</p>}
+        </div>
+
+        <div className="full">
+          <label htmlFor="technician_id">Técnico Asignado</label>
+          <select
+            id="technician_id"
+            name="technician_id"
+            value={formData.technician_id}
+            onChange={handleChange}
+          >
+            <option value="">Seleccionar técnico</option>
+            {technicians.map((tech) => (
+              <option key={tech.id} value={tech.id}>
+                {tech.name}
+              </option>
+            ))}
+          </select>
+          {errors.technician_id && <p className="text-[#9f2f2d] text-sm mt-1">{errors.technician_id}</p>}
         </div>
       </div>
 
-      {/* Prioridad */}
-      <div>
-        <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">
-          Prioridad
-        </label>
-        <select
-          id="priority"
-          name="priority"
-          value={formData.priority}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.priority 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-        >
-          <option value="low">Baja</option>
-          <option value="medium">Media</option>
-          <option value="high">Alta</option>
-        </select>
-        {errors.priority && <p className="text-red-600 text-sm mt-1">{errors.priority}</p>}
-      </div>
-
-      {/* Tipo de ticket */}
-      <div>
-        <label htmlFor="ticket_type" className="block text-sm font-medium text-gray-700 mb-2">
-          Tipo de Servicio
-        </label>
-        <select
-          id="ticket_type"
-          name="ticket_type"
-          value={formData.ticket_type}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.ticket_type 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-        >
-          <option value="support">Soporte Técnico</option>
-          <option value="installation">Instalación</option>
-          <option value="removal">Remoción/Desmontaje</option>
-        </select>
-        {errors.ticket_type && <p className="text-red-600 text-sm mt-1">{errors.ticket_type}</p>}
-      </div>
-
-      {/* Técnico asignado */}
-      <div>
-        <label htmlFor="technician_id" className="block text-sm font-medium text-gray-700 mb-2">
-          Técnico Asignado
-        </label>
-        <select
-          id="technician_id"
-          name="technician_id"
-          value={formData.technician_id}
-          onChange={handleChange}
-          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-            errors.technician_id 
-              ? 'border-red-300 focus:ring-red-200' 
-              : 'border-gray-300 focus:ring-blue-200'
-          }`}
-        >
-          <option value="">-- Selecciona un técnico --</option>
-          {technicians.map(tech => (
-            <option key={tech.id} value={tech.id}>
-              {tech.name}
-            </option>
-          ))}
-        </select>
-        {errors.technician_id && <p className="text-red-600 text-sm mt-1">{errors.technician_id}</p>}
-      </div>
-
-      {/* Botones */}
-      <div className="flex gap-4">
+      <div className="flex items-center justify-end gap-3 pt-2">
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition"
+          className="primary-btn"
         >
-          {loading ? 'Creando...' : 'Crear Ticket'}
-        </button>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition"
-        >
-          Cancelar
+          {loading ? 'Creando ticket...' : 'Crear ticket'}
         </button>
       </div>
     </form>

@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateTicket } from "@/lib/repository";
+import { getTicketById, updateTicket } from "@/lib/repository";
+
+const validStates = ["pending", "assigned", "in_progress", "completed", "not_completed"];
+
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+
+  if (!origin || !host) {
+    return true;
+  }
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Validar transiciones de estado permitidas
@@ -11,9 +28,6 @@ import { updateTicket } from "@/lib/repository";
  * - pending/assigned → pending (admin reasigna)
  */
 function isValidStateTransition(currentStatus: string, newStatus: string): boolean {
-  // Estados válidos
-  const validStates = ["pending", "assigned", "in_progress", "completed", "not_completed"];
-  
   if (!validStates.includes(newStatus)) {
     return false;
   }
@@ -39,6 +53,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     const { id: ticketId } = await params;
     const body = await request.json();
 
@@ -50,22 +68,31 @@ export async function PATCH(
       );
     }
 
-    // Si se intenta cambiar status, validar transición
+    const currentTicket = await getTicketById(ticketId);
+    if (!currentTicket) {
+      return NextResponse.json(
+        { error: `Ticket not found: ${ticketId}` },
+        { status: 404 }
+      );
+    }
+
+    // Si se intenta cambiar status, validar transición real
     if (body.status !== undefined) {
-      // Aquí en una app real, obtendríamos el ticket actual de Supabase
-      // Para esta versión, confiamos en que el cliente sabe el estado actual
-      // En producción, deberías hacer:
-      // const currentTicket = await supabase.from('tickets').select('status').eq('id', ticketId).single();
-      // if (!isValidStateTransition(currentTicket.status, body.status)) { ... }
-      
-      // Por ahora, validamos solo que sea un estado válido
-      const validStates = ["pending", "assigned", "in_progress", "completed", "not_completed"];
-      if (!validStates.includes(body.status)) {
+      if (typeof body.status !== "string" || !validStates.includes(body.status)) {
         return NextResponse.json(
-          { 
-            error: `Invalid status: ${body.status}. Must be one of: ${validStates.join(", ")}` 
+          {
+            error: `Invalid status: ${String(body.status)}. Must be one of: ${validStates.join(", ")}`
           },
           { status: 400 }
+        );
+      }
+
+      if (!isValidStateTransition(currentTicket.status, body.status)) {
+        return NextResponse.json(
+          {
+            error: `Invalid state transition: ${currentTicket.status} -> ${body.status}`,
+          },
+          { status: 409 }
         );
       }
     }
@@ -118,18 +145,23 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!isSameOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     const { id: ticketId } = await params;
-    
-    // En una app real, traerías desde Supabase:
-    // const { data, error } = await supabase
-    //   .from("tickets")
-    //   .select("*")
-    //   .eq("id", ticketId)
-    //   .single();
-    
+
+    const ticket = await getTicketById(ticketId);
+    if (!ticket) {
+      return NextResponse.json(
+        { error: `Ticket not found: ${ticketId}` },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
-      { message: "GET endpoint for tickets not yet implemented" },
-      { status: 501 }
+      { success: true, ticket },
+      { status: 200 }
     );
   } catch (error) {
     console.error("[GET /api/tickets/[id]]:", error);
