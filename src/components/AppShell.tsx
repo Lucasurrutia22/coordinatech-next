@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  BarChart3,
   CalendarDays,
   ClipboardList,
   FolderOpen,
+  Gauge,
   Grid3x3,
   LayoutDashboard,
   LogOut,
@@ -40,6 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const adminLinks = user?.role === "admin"
     ? [
+        { href: "/admin/analytics", label: "Analítica KPI", icon: BarChart3 },
+        { href: "/admin/metricas-sla", label: "Métricas SLA", icon: Gauge },
         { href: "/technicians",    label: "Técnicos",           icon: UserCog    },
         { href: "/ordenes-trabajo", label: "Órdenes de Trabajo", icon: FolderOpen },
       ]
