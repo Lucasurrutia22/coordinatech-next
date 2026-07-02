@@ -904,6 +904,106 @@ td a:hover { background: #a7f3d0; }
   color: var(--muted);
 }
 
+/* ── Login Carousel ─────────────────────────────────── */
+.login-carousel-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f5f3ee 0%, #e7dfd4 100%);
+}
+
+.login-carousel-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.login-carousel-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.login-carousel-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0, 20, 40, 0.75) 0%, rgba(16, 90, 70, 0.35) 100%);
+  z-index: 1;
+}
+
+.login-carousel-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 2rem;
+}
+
+.login-carousel-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1;
+  color: white;
+}
+
+.login-carousel-text h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-family: var(--font-editorial), Georgia, serif;
+}
+
+.login-carousel-text p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.95;
+  max-width: 32rem;
+}
+
+.login-carousel-indicators {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-dot:hover {
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.15);
+}
+
+.carousel-dot.active {
+  width: 32px;
+  border-radius: 6px;
+  background: white;
+  border-color: white;
+}
+
 /* Keep old classes for backward compat */
 .login-brand { display: none; }
 .login-card { display: none; }

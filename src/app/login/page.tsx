@@ -7,6 +7,7 @@ import { Grid3x3, Mail, Lock, Eye, EyeOff, ArrowRight, Users } from "lucide-reac
 import { useAppContext } from "@/context/AppContext";
 import { TwoFactorAuth } from "@/components/TwoFactorAuth";
 import { LoginRateLimiter, SessionTimeoutManager } from "@/lib/security";
+import { LoginCarousel } from "@/components/LoginCarousel";
 import { UserRole } from "@/types/domain";
 
 export default function LoginPage() {
@@ -98,29 +99,9 @@ export default function LoginPage() {
 
   return (
     <main className="login-screen">
-      {/* ── Left: Visual Anchor ── */}
+      {/* ── Left: Visual Anchor with Carousel ── */}
       <section className="login-visual">
-        <div className="login-gradient-overlay" />
-
-        {/* Stat badge — top left */}
-        <div className="login-stat-badge">
-          <Users size={20} />
-          <div>
-            <p className="stat-label">Técnicos Activos</p>
-            <p className="stat-value">{technicians.filter(t => t.active).length.toLocaleString('es-ES')}</p>
-          </div>
-        </div>
-
-        {/* Bottom headline */}
-        <div className="login-headline">
-          <h2>Precisión logística en cada movimiento.</h2>
-          <p>Gestione flotas, técnicos y horarios con la plataforma de coordinación más avanzada del sector.</p>
-          <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem", opacity: 0.5 }}>
-            <div style={{ height: "4px", width: "48px", background: "white", borderRadius: "9999px" }} />
-            <div style={{ height: "4px", width: "32px", background: "rgba(255,255,255,0.4)", borderRadius: "9999px" }} />
-            <div style={{ height: "4px", width: "32px", background: "rgba(255,255,255,0.4)", borderRadius: "9999px" }} />
-          </div>
-        </div>
+        <LoginCarousel />
       </section>
 
       {/* ── Right: Login Form ── */}
