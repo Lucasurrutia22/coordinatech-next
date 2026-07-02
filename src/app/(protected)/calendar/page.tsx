@@ -192,13 +192,8 @@ export default function CalendarPage() {
               {user?.role === "admin" && (
                 <Link
                   href="/tickets/new"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    padding: "0.38rem 0.9rem", fontSize: "0.8rem", fontWeight: 600,
-                    background: "var(--primary)", color: "#fff",
-                    borderRadius: "var(--r-sm)", textDecoration: "none",
-                    transition: "opacity 0.12s",
-                  }}
+                  className="primary-btn"
+                  style={{ fontSize: "0.8rem", padding: "0.38rem 0.9rem" }}
                 >
                   <Plus size={14} strokeWidth={2.5} /> Nuevo ticket
                 </Link>
