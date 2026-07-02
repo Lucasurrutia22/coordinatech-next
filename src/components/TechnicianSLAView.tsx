@@ -32,8 +32,8 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
           border: "1px solid #e2e8f0",
         }}
       >
-        <p style={{ margin: 0, fontSize: "1.1rem", color: "#64748b", fontWeight: "500" }}>
-          ✓ No tienes tickets activos
+          <p style={{ margin: 0, fontSize: "1.1rem", color: "#64748b", fontWeight: "500" }}>
+          No tienes tickets activos
         </p>
         <p style={{ margin: "8px 0 0 0", fontSize: "0.9rem", color: "#94a3b8" }}>
           Bien hecho, mantén el buen trabajo
@@ -72,7 +72,7 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
             }}
           >
             <p style={{ margin: "0 0 4px 0", fontSize: "0.8rem", color: "#7f1d1d", fontWeight: "600" }}>
-              🚨 Críticos
+              Críticos
             </p>
             <p style={{ margin: 0, fontSize: "1.5rem", fontWeight: "700", color: "#ef4444" }}>
               {criticalTickets.length}
@@ -108,7 +108,7 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
           }}
         >
           <p style={{ margin: "0 0 8px 0", fontSize: "1rem", fontWeight: "700", color: "#7f1d1d" }}>
-            🚨 Acción Inmediata Requerida
+            Acción inmediata requerida
           </p>
           <p style={{ margin: 0, fontSize: "0.9rem", color: "#7f1d1d" }}>
             Tienes {criticalTickets.length} ticket{criticalTickets.length > 1 ? "s" : ""} con SLA crítico.
@@ -119,8 +119,8 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
 
       {/* Lista de tickets con SLA */}
       <div>
-        <h3 style={{ margin: "0 0 16px 0", fontSize: "1rem", fontWeight: "600", color: "#1e293b" }}>
-          📋 Mis Tickets Activos
+          <h3 style={{ margin: "0 0 16px 0", fontSize: "1rem", fontWeight: "600", color: "#1e293b" }}>
+          Mis tickets activos
         </h3>
 
         <div style={{ display: "grid", gap: "16px" }}>
@@ -150,8 +150,8 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
                       {ticket.title}
                     </h4>
                     <div style={{ display: "flex", gap: "12px", fontSize: "0.8rem", color: "#64748b" }}>
-                      <span>🏢 {ticket.client_name || "Sin cliente"}</span>
-                      <span>📍 {ticket.address.substring(0, 30)}...</span>
+                      <span>{ticket.client_name || "Sin cliente"}</span>
+                      <span>{ticket.address.substring(0, 30)}...</span>
                     </div>
                   </div>
                   <div
@@ -203,9 +203,9 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
                         ticket.priority === "high" ? "#991b1b" : ticket.priority === "medium" ? "#92400e" : "#166534",
                     }}
                   >
-                    {ticket.priority === "high" && "🔴 ALTA PRIORIDAD"}
-                    {ticket.priority === "medium" && "🟡 PRIORIDAD MEDIA"}
-                    {ticket.priority === "low" && "🟢 BAJA PRIORIDAD"}
+                    {ticket.priority === "high" && "Alta prioridad"}
+                    {ticket.priority === "medium" && "Prioridad media"}
+                    {ticket.priority === "low" && "Baja prioridad"}
                   </div>
 
                   {metrics.level === "critical" || metrics.level === "overdue" ? (
@@ -222,7 +222,7 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
                         cursor: "pointer",
                       }}
                     >
-                      ⚡ Actuar Ahora
+                      Actuar ahora
                     </a>
                   ) : (
                     <a
@@ -238,7 +238,7 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
                         cursor: "pointer",
                       }}
                     >
-                      Ver Detalles
+                      Ver detalles
                     </a>
                   )}
                 </div>
@@ -257,11 +257,11 @@ export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
           borderRadius: "8px",
         }}
       >
-        <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: "600", color: "#166534" }}>
-          💡 Consejos para cumplir SLA:
+          <p style={{ margin: "0 0 8px 0", fontSize: "0.9rem", fontWeight: "600", color: "#166534" }}>
+          Consejos para cumplir SLA:
         </p>
         <ul style={{ margin: "8px 0 0 0", paddingLeft: "20px", color: "#166534", fontSize: "0.85rem" }}>
-          <li>Prioriza tickets con estado 🔴 Crítico</li>
+          <li>Prioriza tickets en estado crítico</li>
           <li>Revisa la barra de progreso para gestionar tu tiempo</li>
           <li>Actualiza el estado del ticket frecuentemente</li>
           <li>Si necesitas más tiempo, comunícalo al admin</li>

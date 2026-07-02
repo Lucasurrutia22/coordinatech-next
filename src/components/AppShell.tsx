@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const adminLinks = user?.role === "admin"
     ? [
-        { href: "/technicians",    label: "Tecnicos",           icon: UserCog    },
+        { href: "/technicians",    label: "Técnicos",           icon: UserCog    },
         { href: "/ordenes-trabajo", label: "Órdenes de Trabajo", icon: FolderOpen },
       ]
     : [];
@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           COORDINATECH
         </div>
         <h2>Service Control</h2>
-        <p>Gestion operativa en campo</p>
+        <p>Gestión operativa en campo</p>
       </div>
 
       <nav className="sidebar-nav">
@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {adminLinks.length > 0 && (
           <>
-            <p className="nav-section-label" style={{ marginTop: "0.75rem" }}>Administracion</p>
+            <p className="nav-section-label" style={{ marginTop: "0.75rem" }}>Administración</p>
             {adminLinks.map(({ href, label, icon: Icon }) => (
               <Link key={href} href={href} className={clsx("nav-item", isActive(href) && "active")} onClick={closeSidebar}>
                 <Icon size={16} />
@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           onClick={() => { logout(); router.replace("/login"); }}
         >
           <LogOut size={14} />
-          Cerrar sesion
+          Cerrar sesión
         </button>
       </div>
     </>
@@ -147,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="topbar-right">
             <div className="topbar-user topbar-user-hide">
               <p className="user-name">{user?.name ?? "Usuario"}</p>
-              <p className="user-role">{user?.role === "admin" ? "Administrador" : "Tecnico"}</p>
+              <p className="user-role">{user?.role === "admin" ? "Administrador" : "Técnico"}</p>
             </div>
             <Avatar name={user?.name ?? "Usuario"} size={36} style={{ border: "2px solid var(--surface)", boxShadow: "var(--shadow-sm)" }} />
           </div>

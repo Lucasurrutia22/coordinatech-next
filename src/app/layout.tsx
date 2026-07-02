@@ -17,8 +17,8 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Coordinatech Next",
-  description: "Plataforma de operacion tecnica con Next.js y Supabase",
+  title: "Coordinatech",
+  description: "Plataforma operativa para coordinación técnica, tickets y seguimiento de SLA.",
 };
 
 export const viewport: Viewport = {

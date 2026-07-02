@@ -16,9 +16,9 @@ const priorityLabel: Record<TicketPriority, string> = {
 };
 
 export function StatusPill({ status }: { status: TicketStatus }) {
-  return <span className={clsx("pill", `status-${status}`)}>{statusLabel[status]}</span>;
+  return <span className={clsx("status-chip", `status-${status}`)}>{statusLabel[status]}</span>;
 }
 
 export function PriorityPill({ priority }: { priority: TicketPriority }) {
-  return <span className={clsx("pill", `priority-${priority}`)}>{priorityLabel[priority]}</span>;
+  return <span className={clsx("status-chip", `priority-${priority}`)}>{priorityLabel[priority]}</span>;
 }

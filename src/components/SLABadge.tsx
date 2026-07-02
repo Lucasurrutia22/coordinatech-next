@@ -9,17 +9,17 @@ export function SLABadge({ ticket }: { ticket: Ticket }) {
 
   const statusConfig = {
     healthy: {
-      label: "SLA OK",
+      label: "SLA en orden",
       className: "status-completed",
       color: "#16a34a",
     },
     warning: {
-      label: "Alerta SLA",
+      label: "SLA en alerta",
       className: "status-assigned",
       color: "#d97706",
     },
     critical: {
-      label: "SLA Vencido",
+      label: "SLA vencido",
       className: "status-pending",
       color: "#dc2626",
     },
@@ -29,7 +29,7 @@ export function SLABadge({ ticket }: { ticket: Ticket }) {
 
   return (
     <span
-      className={`pill ${config.className}`}
+      className={`status-chip ${config.className}`}
       title={`Vencimiento SLA: ${ticket.sla_deadline ? new Date(ticket.sla_deadline).toLocaleString() : "N/A"}`}
       style={{ fontSize: "0.7rem", marginLeft: "0.5rem" }}
     >
@@ -48,10 +48,10 @@ export function SLATimeRemaining({ deadline }: { deadline?: string }) {
   const diffMs = deadlineDate.getTime() - now.getTime();
 
   if (diffMs < 0) {
-    return <span style={{ color: "#dc2626" }}>Vencido hace {formatTimeDiff(-diffMs)}</span>;
+    return <span style={{ color: "#9f2f2d" }}>Vencido hace {formatTimeDiff(-diffMs)}</span>;
   }
 
-  return <span style={{ color: "#16a34a" }}>Quedan {formatTimeDiff(diffMs)}</span>;
+  return <span style={{ color: "#346538" }}>Quedan {formatTimeDiff(diffMs)}</span>;
 }
 
 function formatTimeDiff(ms: number): string {

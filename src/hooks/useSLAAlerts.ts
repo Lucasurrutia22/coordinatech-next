@@ -24,12 +24,12 @@ export function useSLAAlerts(tickets: Ticket[]) {
         );
 
         if (sla.status === 'critical' && !alertedTickets.has(ticket.id)) {
-          toast.error(`⚠️ SLA CRÍTICO - ${ticket.id}`, {
+          toast.error(`SLA crítico - ${ticket.id}`, {
             description: `Solo ${sla.hoursRemaining.toFixed(1)}h restantes`,
           });
           alertedTickets.add(ticket.id);
         } else if (sla.status === 'warning' && !alertedTickets.has(`warn-${ticket.id}`)) {
-          toast.warning(`⏱️ SLA Próximo - ${ticket.id}`, {
+          toast.warning(`SLA próximo - ${ticket.id}`, {
             description: `${sla.hoursRemaining.toFixed(1)}h restantes`,
           });
           alertedTickets.add(`warn-${ticket.id}`);

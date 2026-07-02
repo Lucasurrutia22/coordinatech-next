@@ -16,20 +16,20 @@ export interface DashboardMetrics {
 export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
   const slaHealth = metrics.slaComplianceRate >= 95 ? 'good' : 
                     metrics.slaComplianceRate >= 85 ? 'warning' : 'critical';
-  const slaLabel = slaHealth === 'good' ? 'Estable' : slaHealth === 'warning' ? 'Alerta' : 'Critico';
+  const slaLabel = slaHealth === 'good' ? 'Estable' : slaHealth === 'warning' ? 'Alerta' : 'Crítico';
   const slaStateClass =
     slaHealth === 'good'
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      ? 'bg-[#edf3ec] text-[#346538] border-[#c7dbc3]'
       : slaHealth === 'warning'
-        ? 'bg-amber-50 text-amber-800 border-amber-200'
-        : 'bg-rose-50 text-rose-800 border-rose-200';
+        ? 'bg-[#fbf3db] text-[#956400] border-[#f0dea6]'
+        : 'bg-[#fdebec] text-[#9f2f2d] border-[#f3c1c1]';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
       {/* Tickets completados hoy */}
       <MetricCard
         className="lg:col-span-2"
-        title="Completados Hoy"
+        title="Cerrados hoy"
         value={metrics.completedToday.toString()}
         icon={<CheckCircle className="w-5 h-5" />}
         trendValue={`${Math.round((metrics.completedToday / Math.max(metrics.totalTickets, 1)) * 100)}%`}
@@ -60,7 +60,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       {/* Pérdidas prevenidas */}
       <MetricCard
         className="md:col-span-2 lg:col-span-1"
-        title="Ahorros del Mes"
+        title="Ahorro estimado"
         value={`$${(metrics.estimatedLossesPrevented / 1000).toFixed(0)}K`}
         icon={<DollarSign className="w-5 h-5" />}
         trendValue={`vs $4M potencial`}
@@ -70,14 +70,14 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
 
       {/* Alertas críticas */}
       {metrics.criticalAlertsCount > 0 && (
-        <div className="col-span-full bg-white border border-[#EAEAEA] rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-rose-700 flex-shrink-0 mt-0.5" />
+        <div className="col-span-full surface-card p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-[#9f2f2d] flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-stone-900 flex items-center gap-2">
-              {metrics.criticalAlertsCount} Alerta{metrics.criticalAlertsCount > 1 ? 's' : ''} Crítica{metrics.criticalAlertsCount > 1 ? 's' : ''}
-              <span className="text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-md border border-rose-200 bg-rose-50 text-rose-800">Estado Critico</span>
+            <h3 className="font-semibold text-[#111111] flex items-center gap-2">
+              {metrics.criticalAlertsCount} alerta{metrics.criticalAlertsCount > 1 ? 's' : ''} crítica{metrics.criticalAlertsCount > 1 ? 's' : ''}
+              <span className="text-[11px] uppercase tracking-[0.08em] px-2 py-0.5 rounded-md border border-[#f3c1c1] bg-[#fdebec] text-[#9f2f2d]">Requiere atención</span>
             </h3>
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-[#787774]">
               {metrics.criticalAlertsCount} ticket{metrics.criticalAlertsCount > 1 ? 's' : ''} está{metrics.criticalAlertsCount > 1 ? 'n' : ''} a menos del 15% del tiempo SLA. Acción inmediata requerida.
             </p>
           </div>
@@ -85,18 +85,18 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
       )}
 
       {/* Tiempo promedio resolución */}
-      <div className="col-span-full bg-white border border-[#EAEAEA] rounded-xl p-4">
+      <div className="col-span-full surface-card p-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-stone-700">Tiempo Promedio Resolucion</p>
-              <span className={`text-[11px] uppercase tracking-wide px-2 py-0.5 rounded-md border ${slaStateClass}`}>
+              <p className="text-sm font-medium text-[#2f3437]">Tiempo promedio de resolución</p>
+              <span className={`text-[11px] uppercase tracking-[0.08em] px-2 py-0.5 rounded-md border ${slaStateClass}`}>
                 {slaLabel}
               </span>
             </div>
-            <p className="text-2xl font-semibold text-stone-900">{metrics.avgResolutionTime.toFixed(1)}h</p>
+            <p className="text-2xl font-semibold tracking-[-0.03em] text-[#111111]">{metrics.avgResolutionTime.toFixed(1)}h</p>
           </div>
-          <Clock className="w-8 h-8 text-stone-400" />
+          <Clock className="w-8 h-8 text-[#9a9791]" />
         </div>
       </div>
     </div>
