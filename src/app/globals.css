@@ -488,15 +488,17 @@ select {
 .primary-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  background: var(--brand);
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--ink);
   color: #fff;
   border: none;
-  border-radius: var(--r-md);
-  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  padding: 0.65rem 1.25rem;
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
   transition: background 0.14s, box-shadow 0.14s, transform 0.1s;
   text-decoration: none;
@@ -504,12 +506,15 @@ select {
 }
 
 .primary-btn:hover {
-  background: var(--brand-strong);
-  box-shadow: 0 4px 12px rgba(14,164,114,.35);
-  transform: translateY(-1px);
+  background: #2a2a2a;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
 }
 
-.primary-btn:active { transform: translateY(0); }
+.primary-btn:active {
+  transform: translateY(0);
+  background: #1a1a1a;
+}
 
 .outline-btn {
   display: inline-flex;
