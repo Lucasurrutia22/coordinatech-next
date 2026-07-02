@@ -28,6 +28,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
       {/* Tickets completados hoy */}
       <MetricCard
+        className="lg:col-span-2"
         title="Completados Hoy"
         value={metrics.completedToday.toString()}
         icon={<CheckCircle className="w-5 h-5" />}
@@ -58,6 +59,7 @@ export function DashboardKPIs({ metrics }: { metrics: DashboardMetrics }) {
 
       {/* Pérdidas prevenidas */}
       <MetricCard
+        className="md:col-span-2 lg:col-span-1"
         title="Ahorros del Mes"
         value={`$${(metrics.estimatedLossesPrevented / 1000).toFixed(0)}K`}
         icon={<DollarSign className="w-5 h-5" />}

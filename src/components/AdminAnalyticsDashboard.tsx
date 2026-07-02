@@ -93,14 +93,14 @@ export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="fade-in-up" style={{ ['--delay' as any]: '0ms' }}>
         <p className="text-[11px] uppercase tracking-[0.12em] text-stone-500 mb-2">Analitica Operativa</p>
-        <h1 className="text-3xl font-semibold text-stone-900">Analisis Detallado de Tiempos</h1>
+        <h1 className="editorial-title text-4xl text-stone-900">Analisis Detallado de Tiempos</h1>
         <p className="text-stone-600 mt-1">Periodo: ultimos {days} dias</p>
       </div>
 
       {/* KPIs de resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 fade-in-up" style={{ ['--delay' as any]: '80ms' }}>
         <div className="bg-white border border-[#EAEAEA] rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -145,7 +145,7 @@ export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
       </div>
 
       {/* Tabla de técnicos */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl overflow-hidden">
+      <div className="bg-white border border-[#EAEAEA] rounded-xl overflow-hidden fade-in-up" style={{ ['--delay' as any]: '160ms' }}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-[#FBFBFA] border-b border-[#EAEAEA]">
@@ -222,7 +222,7 @@ export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
 
       {/* Detalles de técnico seleccionado */}
       {selectedTech && (
-        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6 fade-in-up" style={{ ['--delay' as any]: '220ms' }}>
           {(() => {
             const tech = technicians.find(t => t.id === selectedTech);
             if (!tech) return null;

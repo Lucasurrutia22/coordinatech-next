@@ -9,6 +9,7 @@ export function MetricCard({
   trend,
   trendValue,
   accent,
+  className,
 }: {
   title?: string;
   label?: string;
@@ -18,6 +19,7 @@ export function MetricCard({
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
   accent?: string;
+  className?: string;
 }) {
   // Support both old and new prop names
   const cardTitle = title || label;
@@ -30,7 +32,7 @@ export function MetricCard({
         : 'text-stone-500';
 
   return (
-    <div className="bg-white rounded-xl border border-[#EAEAEA] p-5">
+    <div className={`bg-white rounded-xl border border-[#EAEAEA] p-5 transition-transform duration-200 hover:-translate-y-0.5 ${className || ''}`}>
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-sm font-medium text-stone-600">{cardTitle}</h3>
         <div 

@@ -95,18 +95,22 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
+      <div className="fade-in-up" style={{ ['--delay' as any]: '0ms' }}>
         <p className="text-[11px] uppercase tracking-[0.12em] text-stone-500 mb-2">Centro de Operaciones</p>
-        <h1 className="text-3xl font-semibold text-stone-900">Panel de Control</h1>
+        <h1 className="editorial-title text-4xl text-stone-900">Panel de Control</h1>
         <p className="text-stone-600 mt-1">Monitoreo en tiempo real de SLAs y operaciones</p>
       </div>
 
       {/* KPIs */}
-      {metrics && <DashboardKPIs metrics={metrics} />}
+      {metrics && (
+        <div className="fade-in-up" style={{ ['--delay' as any]: '80ms' }}>
+          <DashboardKPIs metrics={metrics} />
+        </div>
+      )}
 
       {/* Alertas críticas */}
       {criticalTickets.length > 0 && (
-        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+        <div className="bg-white border border-[#EAEAEA] rounded-xl p-6 fade-in-up" style={{ ['--delay' as any]: '160ms' }}>
           <div className="flex items-start gap-4">
             <AlertCircle className="w-6 h-6 text-rose-700 flex-shrink-0 mt-1" />
             <div className="flex-1">
@@ -142,7 +146,7 @@ export default function DashboardPage() {
       )}
 
       {/* Tickets próximos a vencer */}
-      <div className="bg-white border border-[#EAEAEA] rounded-xl p-6">
+      <div className="bg-white border border-[#EAEAEA] rounded-xl p-6 fade-in-up" style={{ ['--delay' as any]: '240ms' }}>
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-5 h-5 text-stone-700" />
           <h2 className="text-lg font-semibold text-stone-900">Monitoreo de SLAs en Tiempo Real</h2>
