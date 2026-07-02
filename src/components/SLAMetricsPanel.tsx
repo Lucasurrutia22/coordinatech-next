@@ -115,20 +115,27 @@ export function SLAMetricsPanel() {
 
   async function loadMetrics() {
     try {
+      setLoading(true);
       setError(null);
 
-      const [ticketsResult, techniciansResult] = await Promise.all([
+      const [ticketsSettled, techniciansSettled] = await Promise.allSettled([
         supabase.from('tickets').select('*').order('created_at', { ascending: false }),
         supabase.from('technicians').select('id, name'),
       ]);
 
+      if (ticketsSettled.status === 'rejected') {
+        throw ticketsSettled.reason;
+      }
+
+      const ticketsResult = ticketsSettled.value;
       if (ticketsResult.error) throw ticketsResult.error;
-      if (techniciansResult.error) throw techniciansResult.error;
 
       const names: Record<string, string> = {};
-      (techniciansResult.data || []).forEach((tech: { id: string; name: string }) => {
-        names[tech.id] = tech.name;
-      });
+      if (techniciansSettled.status === 'fulfilled' && !techniciansSettled.value.error) {
+        (techniciansSettled.value.data || []).forEach((tech: { id: string; name: string }) => {
+          names[tech.id] = tech.name;
+        });
+      }
       setTechnicianNames(names);
 
       if (!ticketsResult.data) {
@@ -144,15 +151,19 @@ export function SLAMetricsPanel() {
         return;
       }
 
-      const slaMetrics: SLAMetric[] = (ticketsResult.data as TicketData[]).map((ticket: TicketData) => {
-        const sla = calculateSLA(new Date(ticket.created_at), ticket.priority, ticket.status);
+      const slaMetrics: SLAMetric[] = (ticketsResult.data as TicketData[])
+        .filter((ticket) => Boolean(ticket.created_at))
+        .map((ticket: TicketData) => {
+        const parsedCreatedAt = new Date(ticket.created_at);
+        const validCreatedAt = Number.isNaN(parsedCreatedAt.getTime()) ? new Date() : parsedCreatedAt;
+        const sla = calculateSLA(validCreatedAt, ticket.priority, ticket.status);
         return {
           id: ticket.id,
           description: ticket.description,
           client_name: ticket.client_name || 'Sin cliente',
           priority: ticket.priority,
           status: ticket.status,
-          created_at: ticket.created_at,
+          created_at: validCreatedAt.toISOString(),
           technician_id: ticket.technician_id,
           sla_percent: sla.percentRemaining,
           sla_status: sla.status,
@@ -216,6 +227,7 @@ export function SLAMetricsPanel() {
 
       const dayItems = metrics.filter((item) => {
         const created = new Date(item.created_at);
+        if (Number.isNaN(created.getTime())) return false;
         return created >= day && created < next;
       });
 

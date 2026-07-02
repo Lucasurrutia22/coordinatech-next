@@ -9,7 +9,7 @@ import {
   Ticket,
   Trophy,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useAppContext } from '@/context/AppContext';
 import {
   formatDuration,
   getTechnicianAverageWorkTime,
@@ -72,6 +72,7 @@ function getEfficiencyState(value: number): EfficiencyState {
 }
 
 export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
+  const { technicians: appTechnicians } = useAppContext();
   const [technicians, setTechnicians] = useState<TechnicianStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
@@ -86,34 +87,37 @@ export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
       setLoading(true);
       setError(null);
 
-      const { data: techs, error: techError } = await supabase
-        .from('technicians')
-        .select('id, name')
-        .order('name');
+      const techs = (appTechnicians || []).map((tech) => ({ id: tech.id, name: tech.name }));
 
-      if (techError) throw techError;
+      const settled = await Promise.allSettled(
+        techs.map(async (tech) => {
+          const [workStats, breakStats] = await Promise.all([
+            getTechnicianAverageWorkTime(tech.id, days),
+            getTechnicianBreakStats(tech.id, days),
+          ]);
 
-      const stats: TechnicianStat[] = [];
+          return {
+            id: tech.id,
+            name: tech.name,
+            average_total_ms: workStats.average_total_ms,
+            average_active_ms: workStats.average_active_ms,
+            total_tickets: workStats.total_tickets,
+            total_breaks: breakStats.total_breaks,
+            total_break_time_ms: breakStats.total_break_time_ms,
+            average_break_duration_ms: breakStats.average_break_duration_ms,
+          } satisfies TechnicianStat;
+        })
+      );
 
-      for (const tech of techs || []) {
-        const [workStats, breakStats] = await Promise.all([
-          getTechnicianAverageWorkTime(tech.id, days),
-          getTechnicianBreakStats(tech.id, days),
-        ]);
-
-        stats.push({
-          id: tech.id,
-          name: tech.name,
-          average_total_ms: workStats.average_total_ms,
-          average_active_ms: workStats.average_active_ms,
-          total_tickets: workStats.total_tickets,
-          total_breaks: breakStats.total_breaks,
-          total_break_time_ms: breakStats.total_break_time_ms,
-          average_break_duration_ms: breakStats.average_break_duration_ms,
-        });
-      }
+      const stats = settled
+        .filter((item): item is PromiseFulfilledResult<TechnicianStat> => item.status === 'fulfilled')
+        .map((item) => item.value);
 
       setTechnicians(stats);
+
+      if (techs.length > 0 && stats.length === 0) {
+        setError('No fue posible construir metricas de tiempo para los tecnicos en este momento.');
+      }
     } catch (err) {
       console.error('Error loading analytics:', err);
       setError('No fue posible cargar las metricas operativas en este momento.');
@@ -165,6 +169,14 @@ export function AdminAnalyticsDashboard({ days = 30 }: AdminAnalyticsProps) {
     return (
       <div className="surface-card p-5 text-sm text-[#9f2f2d] border-[#f3c1c1] bg-[#fdebec]">
         {error}
+      </div>
+    );
+  }
+
+  if (technicians.length === 0) {
+    return (
+      <div className="surface-card p-5 text-sm text-[#956400] border-[#f0dea6] bg-[#fbf3db]">
+        No hay datos suficientes de tecnicos para construir los graficos KPI de analitica.
       </div>
     );
   }
