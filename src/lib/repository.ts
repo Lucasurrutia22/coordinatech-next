@@ -65,6 +65,62 @@ function normalizeTicket(raw: Record<string, unknown>): Ticket {
   return enrichTicketWithSLA(ticket);
 }
 
+function normalizeText(value?: string | null): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function getTicketSemanticKey(ticket: Ticket): string {
+  return [
+    ticket.ticket_type,
+    normalizeText(ticket.title),
+    normalizeText(ticket.description),
+    normalizeText(ticket.address),
+    ticket.priority,
+    normalizeText(ticket.technician_id),
+    ticket.scheduled_date ? new Date(ticket.scheduled_date).toISOString() : "",
+  ].join("|");
+}
+
+function scoreTicketCompleteness(ticket: Ticket): number {
+  return [
+    ticket.id,
+    ticket.title,
+    ticket.description,
+    ticket.address,
+    ticket.created_at,
+    ticket.scheduled_date,
+    ticket.technician_id,
+    ticket.client_name,
+  ].filter(Boolean).length;
+}
+
+function dedupeTickets(tickets: Ticket[]): Ticket[] {
+  const byId = new Map<string, Ticket>();
+
+  for (const ticket of tickets) {
+    const existing = byId.get(ticket.id);
+    if (!existing || scoreTicketCompleteness(ticket) >= scoreTicketCompleteness(existing)) {
+      byId.set(ticket.id, ticket);
+    }
+  }
+
+  const bySemanticKey = new Map<string, Ticket>();
+
+  for (const ticket of byId.values()) {
+    const key = getTicketSemanticKey(ticket);
+    const existing = bySemanticKey.get(key);
+    if (!existing || scoreTicketCompleteness(ticket) >= scoreTicketCompleteness(existing)) {
+      bySemanticKey.set(key, ticket);
+    }
+  }
+
+  return Array.from(bySemanticKey.values()).sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
 export async function getTickets(): Promise<Ticket[]> {
   // Prioridad: retornar almacenamiento local como fuente de verdad.
   const localTickets = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
@@ -114,29 +170,38 @@ export async function getTickets(): Promise<Ticket[]> {
         }
       });
 
+      const deduped = dedupeTickets(merged);
+
       console.log("🔧 DEBUG getTickets(): Merged tiene", merged.length, "tickets");
+      console.log("🔧 DEBUG getTickets(): Deduped tiene", deduped.length, "tickets");
       
       // Solo actualizar almacenamiento local si hay tickets nuevos.
-      const hasMergeChanges = merged.length !== localTickets.length;
+      const hasMergeChanges = JSON.stringify(deduped) !== JSON.stringify(localTickets);
       if (hasMergeChanges) {
         console.log("🔧 DEBUG getTickets(): Actualizando almacenamiento local con tickets nuevos de Supabase");
-        await saveLocal(TICKETS_KEY, merged);
+        await saveLocal(TICKETS_KEY, deduped);
       } else {
         console.log("🔧 DEBUG getTickets(): NO actualizando almacenamiento local (sin cambios)");
       }
       
-      return merged.map(enrichTicketWithSLA);
+      return deduped.map(enrichTicketWithSLA);
     }
   } catch (err) {
     console.warn("Supabase getTickets fallo, usando almacenamiento local:", err);
   }
 
   // Fallback: usar almacenamiento local.
-  return localTickets.map(enrichTicketWithSLA);
+  return dedupeTickets(localTickets).map(enrichTicketWithSLA);
 }
 
 export async function createTicket(ticket: Ticket): Promise<void> {
   const enriched = enrichTicketWithSLA(ticket);
+  const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  const existsLocally = current.some((item) => item.id === enriched.id);
+
+  if (!existsLocally) {
+    await saveLocal(TICKETS_KEY, [enriched, ...current]);
+  }
 
   if (hasSupabaseEnv && supabase) {
     try {
@@ -153,10 +218,6 @@ export async function createTicket(ticket: Ticket): Promise<void> {
       console.warn("Supabase createTicket fallo, guardando en almacenamiento local:", err);
     }
   }
-
-  // Fallback a almacenamiento local si Supabase falla.
-  const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  await saveLocal(TICKETS_KEY, [enriched, ...current]);
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {

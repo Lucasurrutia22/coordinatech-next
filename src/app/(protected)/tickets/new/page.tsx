@@ -23,6 +23,7 @@ export default function NewTicketPage() {
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().slice(0, 16));
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [technicianId, setTechnicianId] = useState(""); // Vacío = sin asignar
+  const [submitting, setSubmitting] = useState(false);
 
   // Preview del ID correlativo
   const previewId = useMemo(() => {
@@ -34,17 +35,27 @@ export default function NewTicketPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    await addTicket({
-      ticket_type: ticketType,
-      title,
-      description,
-      address,
-      status: "pending",
-      priority,
-      scheduled_date: new Date(scheduledDate).toISOString(),
-      technician_id: technicianId, // Puede ser vacío
-    });
-    router.push("/tickets");
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await addTicket({
+        ticket_type: ticketType,
+        title,
+        description,
+        address,
+        status: "pending",
+        priority,
+        scheduled_date: new Date(scheduledDate).toISOString(),
+        technician_id: technicianId,
+      });
+      router.push("/tickets");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const typeMeta = TICKET_TYPE_META[ticketType];
@@ -148,8 +159,8 @@ export default function NewTicketPage() {
           </select>
         </label>
         <div className="full row-end">
-          <button type="submit" className="primary-btn">
-            Guardar ticket
+          <button type="submit" className="primary-btn" disabled={submitting}>
+            {submitting ? "Guardando..." : "Guardar ticket"}
           </button>
         </div>
       </form>
