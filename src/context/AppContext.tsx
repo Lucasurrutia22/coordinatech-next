@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { getStoredJSON, removeStoredKey, setStoredJSON } from "@/lib/storage";
 import {
   createIncompleteReport,
   createTechnician,
@@ -62,22 +63,7 @@ function nextTicketId(type: Ticket["ticket_type"], existing: Ticket[]): string {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserSession | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(raw) as UserSession;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState<UserSession | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
@@ -99,7 +85,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Cargar datos de Supabase (o fallback) al montar la app
   useEffect(() => {
+    let active = true;
+
+    getStoredJSON<UserSession>(SESSION_KEY)
+      .then((session) => {
+        if (active) {
+          setUser(session);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setUser(null);
+        }
+      });
+
     refreshData().finally(() => setIsReady(true));
+
+    return () => {
+      active = false;
+    };
   }, [refreshData]);
 
   // ── Polling automático cada 10 segundos para sincronizar datos en tiempo real ──
@@ -123,7 +127,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             role,
           };
           setUser(nextUser);
-          window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+          await setStoredJSON(SESSION_KEY, nextUser);
           await refreshData();
           return true;
         }
@@ -144,7 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
 
       setUser(nextUser);
-      window.localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+      await setStoredJSON(SESSION_KEY, nextUser);
       await refreshData();
       return true;
     },
@@ -153,7 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null);
-    window.localStorage.removeItem(SESSION_KEY);
+    void removeStoredKey(SESSION_KEY);
   }, []);
 
   const addTicketHandler = useCallback(
@@ -208,14 +212,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Fallback: usar updateTicket directamente
-        // updateTicket garantiza que localStorage se actualiza siempre
+        // updateTicket garantiza que el almacenamiento local se actualiza siempre.
         await updateTicket(id, payload);
         await refreshData();
       } catch (error) {
         console.error(`Error al actualizar ticket ${id}:`, error);
         
         // SOLO revertir si updateTicket falló (que nunca debería pasar)
-        // Si es un error de Supabase, los cambios ya están en localStorage
+        // Si es un error de Supabase, los cambios ya estan en almacenamiento local.
         setTickets(prevTickets);
         
         // Recargar datos del servidor para sincronizar

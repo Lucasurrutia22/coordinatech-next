@@ -5,6 +5,8 @@
  * - Password validation
  */
 
+import { getStoredJSON, removeStoredKey, setStoredJSON } from "@/lib/storage";
+
 const RATE_LIMIT_KEY = "coordinatech_rate_limit";
 const SESSION_TIMEOUT_KEY = "coordinatech_session_timeout";
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -16,49 +18,42 @@ export class LoginRateLimiter {
   static MAX_ATTEMPTS = 5;
   static WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-  static getAttempts(): { count: number; resetTime: number } | null {
+  static async getAttempts(): Promise<{ count: number; resetTime: number } | null> {
     if (typeof window === "undefined") return null;
 
-    const data = window.localStorage.getItem(RATE_LIMIT_KEY);
-    if (!data) return null;
-
-    try {
-      return JSON.parse(data);
-    } catch {
-      return null;
-    }
+    return await getStoredJSON<{ count: number; resetTime: number }>(RATE_LIMIT_KEY);
   }
 
-  static recordAttempt(): void {
+  static async recordAttempt(): Promise<void> {
     if (typeof window === "undefined") return;
 
-    const current = this.getAttempts();
+    const current = await this.getAttempts();
     const now = Date.now();
 
     if (!current || now > current.resetTime) {
       // First attempt or window expired
-      window.localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({
+      await setStoredJSON(RATE_LIMIT_KEY, {
         count: 1,
         resetTime: now + this.WINDOW_MS,
-      }));
+      });
     } else {
       // Within rate limit window
-      window.localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify({
+      await setStoredJSON(RATE_LIMIT_KEY, {
         count: current.count + 1,
         resetTime: current.resetTime,
-      }));
+      });
     }
   }
 
-  static isLimited(): boolean {
-    const attempts = this.getAttempts();
+  static async isLimited(): Promise<boolean> {
+    const attempts = await this.getAttempts();
     if (!attempts) return false;
 
     const now = Date.now();
     if (now > attempts.resetTime) {
       // Window expired
       if (typeof window !== "undefined") {
-        window.localStorage.removeItem(RATE_LIMIT_KEY);
+        await removeStoredKey(RATE_LIMIT_KEY);
       }
       return false;
     }
@@ -66,17 +61,17 @@ export class LoginRateLimiter {
     return attempts.count >= this.MAX_ATTEMPTS;
   }
 
-  static getRemainingTime(): number {
-    const attempts = this.getAttempts();
+  static async getRemainingTime(): Promise<number> {
+    const attempts = await this.getAttempts();
     if (!attempts) return 0;
 
     const remaining = attempts.resetTime - Date.now();
     return remaining > 0 ? remaining : 0;
   }
 
-  static reset(): void {
+  static async reset(): Promise<void> {
     if (typeof window === "undefined") return;
-    window.localStorage.removeItem(RATE_LIMIT_KEY);
+    await removeStoredKey(RATE_LIMIT_KEY);
   }
 }
 
@@ -86,7 +81,7 @@ export class LoginRateLimiter {
 export class SessionTimeoutManager {
   private static timeoutId: NodeJS.Timeout | null = null;
 
-  static startSession(): void {
+  static async startSession(): Promise<void> {
     if (typeof window === "undefined") return;
 
     // Clear existing timeout
@@ -98,7 +93,7 @@ export class SessionTimeoutManager {
       lastActivityTime: Date.now(),
       timeoutMs: INACTIVITY_TIMEOUT_MS,
     };
-    window.localStorage.setItem(SESSION_TIMEOUT_KEY, JSON.stringify(sessionData));
+    await setStoredJSON(SESSION_TIMEOUT_KEY, sessionData);
 
     // Set activity listeners
     this.attachActivityListeners();
@@ -107,16 +102,19 @@ export class SessionTimeoutManager {
     this.setSessionTimeout();
   }
 
-  static updateActivity(): void {
+  static async updateActivity(): Promise<void> {
     if (typeof window === "undefined") return;
 
-    const sessionData = window.localStorage.getItem(SESSION_TIMEOUT_KEY);
-    if (!sessionData) return;
+    const session = await getStoredJSON<{
+      startTime: number;
+      lastActivityTime: number;
+      timeoutMs: number;
+    }>(SESSION_TIMEOUT_KEY);
+    if (!session) return;
 
     try {
-      const session = JSON.parse(sessionData);
       session.lastActivityTime = Date.now();
-      window.localStorage.setItem(SESSION_TIMEOUT_KEY, JSON.stringify(session));
+      await setStoredJSON(SESSION_TIMEOUT_KEY, session);
 
       // Reset timeout
       if (this.timeoutId) clearTimeout(this.timeoutId);
@@ -130,14 +128,16 @@ export class SessionTimeoutManager {
     if (typeof window === "undefined") return;
 
     this.timeoutId = setTimeout(() => {
-      this.expireSession();
+      void this.expireSession();
     }, INACTIVITY_TIMEOUT_MS);
   }
 
   private static attachActivityListeners(): void {
     if (typeof window === "undefined") return;
 
-    const updateActivity = () => this.updateActivity();
+    const updateActivity = () => {
+      void this.updateActivity();
+    };
 
     window.addEventListener("mousemove", updateActivity, { once: true });
     window.addEventListener("keypress", updateActivity, { once: true });
@@ -145,31 +145,34 @@ export class SessionTimeoutManager {
     window.addEventListener("touchstart", updateActivity, { once: true });
   }
 
-  static expireSession(): void {
+  static async expireSession(): Promise<void> {
     if (typeof window === "undefined") return;
 
-    window.localStorage.removeItem(SESSION_TIMEOUT_KEY);
-    window.localStorage.removeItem("coordinatech_session");
+    await removeStoredKey(SESSION_TIMEOUT_KEY);
+    await removeStoredKey("coordinatech_session");
     
     // Dispatch custom event for app to handle logout
     window.dispatchEvent(new CustomEvent("sessionExpired"));
   }
 
-  static endSession(): void {
+  static async endSession(): Promise<void> {
     if (typeof window === "undefined") return;
 
     if (this.timeoutId) clearTimeout(this.timeoutId);
-    window.localStorage.removeItem(SESSION_TIMEOUT_KEY);
+    await removeStoredKey(SESSION_TIMEOUT_KEY);
   }
 
-  static getRemainingTime(): number {
+  static async getRemainingTime(): Promise<number> {
     if (typeof window === "undefined") return 0;
 
-    const sessionData = window.localStorage.getItem(SESSION_TIMEOUT_KEY);
-    if (!sessionData) return 0;
+    const session = await getStoredJSON<{
+      startTime: number;
+      lastActivityTime: number;
+      timeoutMs: number;
+    }>(SESSION_TIMEOUT_KEY);
+    if (!session) return 0;
 
     try {
-      const session = JSON.parse(sessionData);
       const elapsed = Date.now() - session.lastActivityTime;
       const remaining = session.timeoutMs - elapsed;
       return remaining > 0 ? remaining : 0;
@@ -178,15 +181,18 @@ export class SessionTimeoutManager {
     }
   }
 
-  static isSessionActive(): boolean {
+  static async isSessionActive(): Promise<boolean> {
     if (typeof window === "undefined") return false;
 
-    const sessionData = window.localStorage.getItem(SESSION_TIMEOUT_KEY);
-    if (!sessionData) return false;
+    const session = await getStoredJSON<{
+      startTime: number;
+      lastActivityTime: number;
+      timeoutMs: number;
+    }>(SESSION_TIMEOUT_KEY);
+    if (!session) return false;
 
     try {
-      const session = JSON.parse(sessionData);
-      const remaining = this.getRemainingTime();
+      const remaining = await this.getRemainingTime();
       return remaining > 0;
     } catch {
       return false;

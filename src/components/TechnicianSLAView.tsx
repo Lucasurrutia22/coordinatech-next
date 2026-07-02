@@ -1,6 +1,6 @@
 "use client";
 
-import { Ticket } from "@/types/domain";
+import { Ticket, TicketStatus } from "@/types/domain";
 import { calculateSLAMetrics } from "@/lib/slaMetrics";
 import { SLATimelineBar } from "./SLAVisualizer";
 
@@ -8,8 +8,14 @@ interface TechnicianSLAViewProps {
   tickets: Ticket[];
 }
 
+type ActiveTicketStatus = Exclude<TicketStatus, "completed" | "not_completed">;
+
+function isActiveTicket(ticket: Ticket): ticket is Ticket & { status: ActiveTicketStatus } {
+  return ticket.status !== "completed" && ticket.status !== "not_completed";
+}
+
 export function TechnicianSLAView({ tickets }: TechnicianSLAViewProps) {
-  const activeTickets = tickets.filter((t) => t.status !== "completed" && t.status !== "not_completed");
+  const activeTickets = tickets.filter(isActiveTicket);
   const criticalTickets = activeTickets.filter((t) => {
     const metrics = calculateSLAMetrics(t);
     return metrics.level === "critical" || metrics.level === "overdue";

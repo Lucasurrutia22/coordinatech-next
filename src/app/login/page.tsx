@@ -25,13 +25,24 @@ export default function LoginPage() {
   const [pendingRole, setPendingRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
-    // Check if rate limited on mount
-    if (LoginRateLimiter.isLimited()) {
-      const remainingMs = LoginRateLimiter.getRemainingTime();
+    let active = true;
+
+    const checkRateLimit = async () => {
+      if (!(await LoginRateLimiter.isLimited()) || !active) {
+        return;
+      }
+
+      const remainingMs = await LoginRateLimiter.getRemainingTime();
       const remainingMin = Math.ceil(remainingMs / 1000 / 60);
       setRateLimitMessage(`Demasiados intentos. Intenta de nuevo en ${remainingMin} minuto(s).`);
       setError("Has excedido el límite de intentos. Por favor espera antes de intentar de nuevo.");
-    }
+    };
+
+    void checkRateLimit();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const submit = async (event: FormEvent) => {
@@ -40,8 +51,8 @@ export default function LoginPage() {
     setRateLimitMessage("");
 
     // Check rate limiting
-    if (LoginRateLimiter.isLimited()) {
-      const remainingMs = LoginRateLimiter.getRemainingTime();
+    if (await LoginRateLimiter.isLimited()) {
+      const remainingMs = await LoginRateLimiter.getRemainingTime();
       const remainingMin = Math.ceil(remainingMs / 1000 / 60);
       setError(`Demasiados intentos. Intenta de nuevo en ${remainingMin} minuto(s).`);
       return;
@@ -55,8 +66,8 @@ export default function LoginPage() {
     setLoading(false);
     
     if (!success) {
-      LoginRateLimiter.recordAttempt();
-      const attempts = LoginRateLimiter.getAttempts();
+      await LoginRateLimiter.recordAttempt();
+      const attempts = await LoginRateLimiter.getAttempts();
       const remainingAttempts = LoginRateLimiter.MAX_ATTEMPTS - (attempts?.count || 0);
       
       setError(`Credenciales inválidas. Te quedan ${remainingAttempts} intento(s).`);
@@ -64,8 +75,8 @@ export default function LoginPage() {
     }
 
     // Mostrar 2FA
-    LoginRateLimiter.reset(); // Clear rate limit on successful login
-    SessionTimeoutManager.startSession(); // Start session timeout
+    await LoginRateLimiter.reset(); // Clear rate limit on successful login
+    await SessionTimeoutManager.startSession(); // Start session timeout
     setPendingRole(role);
     setShow2FA(true);
   };

@@ -1,4 +1,5 @@
 import { demoTechnicians, demoTickets } from "@/lib/demoData";
+import { getStoredJSON, setStoredJSON } from "@/lib/storage";
 import { hasSupabaseEnv, supabase } from "@/lib/supabase";
 import { enrichTicketWithSLA } from "@/lib/sla";
 import { IncompleteReport, Technician, Ticket, WorkOrder } from "@/types/domain";
@@ -6,29 +7,26 @@ import { IncompleteReport, Technician, Ticket, WorkOrder } from "@/types/domain"
 const TECHS_KEY = "coordinatech_techs";
 const TICKETS_KEY = "coordinatech_tickets";
 
-function loadLocal<T>(key: string, fallback: T): T {
+async function loadLocal<T>(key: string, fallback: T): Promise<T> {
   if (typeof window === "undefined") {
     return fallback;
   }
 
-  const raw = window.localStorage.getItem(key);
-  if (!raw) {
-    window.localStorage.setItem(key, JSON.stringify(fallback));
-    return fallback;
+  const stored = await getStoredJSON<T>(key);
+  if (stored !== null) {
+    return stored;
   }
 
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+  await setStoredJSON(key, fallback);
+  return fallback;
 }
 
-function saveLocal<T>(key: string, value: T): void {
+async function saveLocal<T>(key: string, value: T): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(key, JSON.stringify(value));
+
+  await setStoredJSON(key, value);
 }
 
 export async function getTechnicians(): Promise<Technician[]> {
@@ -46,7 +44,7 @@ export async function getTechnicians(): Promise<Technician[]> {
       clearTimeout(timeoutId);
 
       if (!error && data && data.length > 0) {
-        saveLocal(TECHS_KEY, data);
+        await saveLocal(TECHS_KEY, data);
         return data as Technician[];
       }
     } catch (err) {
@@ -54,8 +52,8 @@ export async function getTechnicians(): Promise<Technician[]> {
     }
   }
 
-  // Fallback: combina localStorage con demoData
-  return loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
+  // Fallback: combina almacenamiento local con demoData
+  return await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
 }
 
 /** Garantiza que tickets viejos (sin ticket_type) no rompan la UI */
@@ -68,15 +66,14 @@ function normalizeTicket(raw: Record<string, unknown>): Ticket {
 }
 
 export async function getTickets(): Promise<Ticket[]> {
-  // PRIORIDAD: SIEMPRE retornar localStorage como fuente de verdad
-  // localStorage es el source-of-truth para datos locales
-  const localTickets = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  // Prioridad: retornar almacenamiento local como fuente de verdad.
+  const localTickets = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
   
   console.log("🔧 DEBUG getTickets(): Cargado localTickets con", localTickets.length, "tickets");
   const st008 = localTickets.find(t => t.id === 'ST-008');
-  if (st008) console.log("🔧 DEBUG getTickets(): ST-008 status en localStorage =", st008.status);
+  if (st008) console.log("🔧 DEBUG getTickets(): ST-008 status en almacenamiento local =", st008.status);
   
-  // Si tenemos tickets en localStorage y Supabase no está disponible, usar localStorage
+  // Si tenemos tickets en almacenamiento local y Supabase no esta disponible, usar almacenamiento local.
   if (!hasSupabaseEnv || !supabase) {
     return localTickets.map(enrichTicketWithSLA);
   }
@@ -102,7 +99,7 @@ export async function getTickets(): Promise<Ticket[]> {
       const st008sup = supabaseTickets.find(t => t.id === 'ST-008');
       if (st008sup) console.log("🔧 DEBUG getTickets(): ST-008 status en Supabase =", st008sup.status);
       
-      // IMPORTANTE: Solo actualizar localStorage si hay tickets NEW en Supabase
+      // Importante: solo actualizar almacenamiento local si hay tickets nuevos en Supabase.
       // (nunca sobrescribir cambios locales)
       const merged: Ticket[] = [];
       const localIdSet = new Set(localTickets.map(t => t.id));
@@ -110,7 +107,7 @@ export async function getTickets(): Promise<Ticket[]> {
       // Agregar todos los tickets locales (preservando cambios locales)
       merged.push(...localTickets);
       
-      // Agregar tickets que son nuevos en Supabase (no están en localStorage)
+      // Agregar tickets que son nuevos en Supabase (no estan en almacenamiento local)
       supabaseTickets.forEach(supTicket => {
         if (!localIdSet.has(supTicket.id)) {
           merged.push(supTicket);
@@ -119,22 +116,22 @@ export async function getTickets(): Promise<Ticket[]> {
 
       console.log("🔧 DEBUG getTickets(): Merged tiene", merged.length, "tickets");
       
-      // Solo actualizar localStorage si hay tickets nuevos
+      // Solo actualizar almacenamiento local si hay tickets nuevos.
       const hasMergeChanges = merged.length !== localTickets.length;
       if (hasMergeChanges) {
-        console.log("🔧 DEBUG getTickets(): Actualizando localStorage con tickets nuevos de Supabase");
-        saveLocal(TICKETS_KEY, merged);
+        console.log("🔧 DEBUG getTickets(): Actualizando almacenamiento local con tickets nuevos de Supabase");
+        await saveLocal(TICKETS_KEY, merged);
       } else {
-        console.log("🔧 DEBUG getTickets(): NO actualizando localStorage (sin cambios)");
+        console.log("🔧 DEBUG getTickets(): NO actualizando almacenamiento local (sin cambios)");
       }
       
       return merged.map(enrichTicketWithSLA);
     }
   } catch (err) {
-    console.warn("Supabase getTickets falló, usando localStorage:", err);
+    console.warn("Supabase getTickets fallo, usando almacenamiento local:", err);
   }
 
-  // Fallback: usar localStorage
+  // Fallback: usar almacenamiento local.
   return localTickets.map(enrichTicketWithSLA);
 }
 
@@ -153,24 +150,24 @@ export async function createTicket(ticket: Ticket): Promise<void> {
       }
       return;
     } catch (err) {
-      console.warn("Supabase createTicket falló, guardando en localStorage:", err);
+      console.warn("Supabase createTicket fallo, guardando en almacenamiento local:", err);
     }
   }
 
-  // Fallback a localStorage si Supabase falla
-  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  saveLocal(TICKETS_KEY, [enriched, ...current]);
+  // Fallback a almacenamiento local si Supabase falla.
+  const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  await saveLocal(TICKETS_KEY, [enriched, ...current]);
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
-  // CRÍTICO: Actualizar localStorage PRIMERO y SINCRÓNICAMENTE
+  // Critico: actualizar almacenamiento local primero.
   // Esto es NON-NEGOTIABLE para cambios optimistas
-  const current = loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+  const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
   
   // Verificar que el ticket existe
   const ticketIndex = current.findIndex(item => item.id === id);
   if (ticketIndex === -1) {
-    throw new Error(`Ticket ${id} not found in localStorage`);
+    throw new Error(`Ticket ${id} not found in local storage`);
   }
   
   // Actualizar el ticket
@@ -178,9 +175,9 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
     item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
   );
   
-  // GUARDAR INMEDIATAMENTE en localStorage
-  saveLocal(TICKETS_KEY, updated);
-  console.log(`updateTicket: Actualizado ${id} en localStorage, status=${payload.status}`);
+  // Guardar inmediatamente en almacenamiento local.
+  await saveLocal(TICKETS_KEY, updated);
+  console.log(`updateTicket: Actualizado ${id} en almacenamiento local, status=${payload.status}`);
 
   // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {
@@ -194,16 +191,16 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
       const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
       if (error) {
         console.warn(`updateTicket: Supabase fallo para ${id}:`, error);
-        // NO relanzar el error aquí - los cambios ya están en localStorage
+        // No relanzar el error aqui: los cambios ya estan en almacenamiento local.
       } else {
         console.log(`updateTicket: ${id} actualizado exitosamente en Supabase`);
       }
     } catch (err) {
       console.warn(`updateTicket: Excepcion de Supabase para ${id}:`, err);
-      // NO relanzar - localStorage ya está actualizado
+      // No relanzar: almacenamiento local ya esta actualizado.
     }
   }
-  // NO hay que relanzar errores aquí - localStorage está garantizado que se actualizó
+  // No relanzar errores aqui: almacenamiento local ya se actualizo.
 }
 
 export async function getTicketById(id: string): Promise<Ticket | undefined> {
@@ -226,15 +223,14 @@ export async function getWorkOrders(): Promise<WorkOrder[]> {
       clearTimeout(timeoutId);
 
       if (!error && data) {
-        saveLocal("coordinatech_work_orders", data);
+        await saveLocal("coordinatech_work_orders", data);
         return data as WorkOrder[];
       }
     } catch (err) {
       console.warn("Supabase getWorkOrders falló:", err);
     }
   }
-  // Fallback localStorage
-  return loadLocal<WorkOrder[]>("coordinatech_work_orders", []);
+  return await loadLocal<WorkOrder[]>("coordinatech_work_orders", []);
 }
 
 export async function createWorkOrder(order: WorkOrder): Promise<void> {
@@ -246,8 +242,8 @@ export async function createWorkOrder(order: WorkOrder): Promise<void> {
       console.warn("Supabase createWorkOrder falló:", err);
     }
   }
-  const current = loadLocal<WorkOrder[]>("coordinatech_work_orders", []);
-  saveLocal("coordinatech_work_orders", [order, ...current]);
+  const current = await loadLocal<WorkOrder[]>("coordinatech_work_orders", []);
+  await saveLocal("coordinatech_work_orders", [order, ...current]);
 }
 
 // ── Incomplete Reports ────────────────────────────────────────
@@ -265,14 +261,14 @@ export async function getIncompleteReports(): Promise<IncompleteReport[]> {
       clearTimeout(timeoutId);
 
       if (!error && data) {
-        saveLocal("coordinatech_incomplete_reports", data);
+        await saveLocal("coordinatech_incomplete_reports", data);
         return data as IncompleteReport[];
       }
     } catch (err) {
       console.warn("Supabase getIncompleteReports falló:", err);
     }
   }
-  return loadLocal<IncompleteReport[]>("coordinatech_incomplete_reports", []);
+  return await loadLocal<IncompleteReport[]>("coordinatech_incomplete_reports", []);
 }
 
 export async function createIncompleteReport(report: IncompleteReport): Promise<void> {
@@ -284,8 +280,8 @@ export async function createIncompleteReport(report: IncompleteReport): Promise<
       console.warn("Supabase createIncompleteReport falló:", err);
     }
   }
-  const current = loadLocal<IncompleteReport[]>("coordinatech_incomplete_reports", []);
-  saveLocal("coordinatech_incomplete_reports", [report, ...current]);
+  const current = await loadLocal<IncompleteReport[]>("coordinatech_incomplete_reports", []);
+  await saveLocal("coordinatech_incomplete_reports", [report, ...current]);
 }
 
 export async function createTechnician(technician: Technician): Promise<void> {
@@ -300,6 +296,6 @@ export async function createTechnician(technician: Technician): Promise<void> {
     }
   }
 
-  const current = loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
-  saveLocal(TECHS_KEY, [technician, ...current]);
+  const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
+  await saveLocal(TECHS_KEY, [technician, ...current]);
 }
