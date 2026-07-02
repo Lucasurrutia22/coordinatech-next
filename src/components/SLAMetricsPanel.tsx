@@ -20,6 +20,7 @@ interface SLAMetric {
   priority: 'low' | 'medium' | 'high';
   status: string;
   created_at: string;
+  technician_id?: string;
   sla_percent: number;
   sla_status: 'critical' | 'warning' | 'ok' | 'completed';
 }
@@ -31,6 +32,7 @@ interface TicketData {
   priority: 'low' | 'medium' | 'high';
   status: string;
   created_at: string;
+  technician_id?: string;
 }
 
 interface SLAStats {
@@ -40,6 +42,20 @@ interface SLAStats {
   okCount: number;
   completedCount: number;
   averageSLA: number;
+}
+
+interface DayPoint {
+  day: string;
+  avg: number;
+  critical: number;
+}
+
+interface TechnicianPoint {
+  id: string;
+  name: string;
+  avg: number;
+  total: number;
+  critical: number;
 }
 
 function getSLAState(percent: number) {
@@ -77,9 +93,14 @@ function toPercent(part: number, total: number) {
   return (part / total) * 100;
 }
 
+function getDayLabel(date: Date) {
+  return date.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
+}
+
 export function SLAMetricsPanel() {
   const [metrics, setMetrics] = useState<SLAMetric[]>([]);
   const [stats, setStats] = useState<SLAStats | null>(null);
+  const [technicianNames, setTechnicianNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,14 +116,22 @@ export function SLAMetricsPanel() {
   async function loadMetrics() {
     try {
       setError(null);
-      const { data: tickets, error: queryError } = await supabase
-        .from('tickets')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (queryError) throw queryError;
+      const [ticketsResult, techniciansResult] = await Promise.all([
+        supabase.from('tickets').select('*').order('created_at', { ascending: false }),
+        supabase.from('technicians').select('id, name'),
+      ]);
 
-      if (!tickets) {
+      if (ticketsResult.error) throw ticketsResult.error;
+      if (techniciansResult.error) throw techniciansResult.error;
+
+      const names: Record<string, string> = {};
+      (techniciansResult.data || []).forEach((tech: { id: string; name: string }) => {
+        names[tech.id] = tech.name;
+      });
+      setTechnicianNames(names);
+
+      if (!ticketsResult.data) {
         setMetrics([]);
         setStats({
           totalTickets: 0,
@@ -115,7 +144,7 @@ export function SLAMetricsPanel() {
         return;
       }
 
-      const slaMetrics: SLAMetric[] = (tickets as TicketData[]).map((ticket: TicketData) => {
+      const slaMetrics: SLAMetric[] = (ticketsResult.data as TicketData[]).map((ticket: TicketData) => {
         const sla = calculateSLA(new Date(ticket.created_at), ticket.priority, ticket.status);
         return {
           id: ticket.id,
@@ -124,6 +153,7 @@ export function SLAMetricsPanel() {
           priority: ticket.priority,
           status: ticket.status,
           created_at: ticket.created_at,
+          technician_id: ticket.technician_id,
           sla_percent: sla.percentRemaining,
           sla_status: sla.status,
         };
@@ -160,6 +190,93 @@ export function SLAMetricsPanel() {
     () => metrics.filter((item) => item.sla_status === 'critical').slice(0, 6),
     [metrics]
   );
+
+  const priorityChart = useMemo(() => {
+    const priorities: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
+
+    return priorities.map((priority) => {
+      const group = metrics.filter((item) => item.priority === priority);
+      const avg = group.length > 0 ? group.reduce((sum, item) => sum + item.sla_percent, 0) / group.length : 0;
+      const critical = group.filter((item) => item.sla_status === 'critical').length;
+      const label = priority === 'high' ? 'Alta' : priority === 'medium' ? 'Media' : 'Baja';
+      return { priority, label, avg, total: group.length, critical };
+    });
+  }, [metrics]);
+
+  const trend7d = useMemo<DayPoint[]>(() => {
+    const buckets: DayPoint[] = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i -= 1) {
+      const day = new Date(today);
+      day.setDate(today.getDate() - i);
+      day.setHours(0, 0, 0, 0);
+      const next = new Date(day);
+      next.setDate(day.getDate() + 1);
+
+      const dayItems = metrics.filter((item) => {
+        const created = new Date(item.created_at);
+        return created >= day && created < next;
+      });
+
+      const avg =
+        dayItems.length > 0
+          ? dayItems.reduce((sum, item) => sum + item.sla_percent, 0) / dayItems.length
+          : 0;
+      const critical = dayItems.filter((item) => item.sla_status === 'critical').length;
+
+      buckets.push({
+        day: getDayLabel(day),
+        avg,
+        critical,
+      });
+    }
+
+    return buckets;
+  }, [metrics]);
+
+  const technicianChart = useMemo<TechnicianPoint[]>(() => {
+    const grouped = new Map<string, { sum: number; total: number; critical: number }>();
+
+    metrics.forEach((item) => {
+      const key = item.technician_id || 'sin_asignar';
+      if (!grouped.has(key)) {
+        grouped.set(key, { sum: 0, total: 0, critical: 0 });
+      }
+      const row = grouped.get(key);
+      if (!row) return;
+
+      row.sum += item.sla_percent;
+      row.total += 1;
+      if (item.sla_status === 'critical') row.critical += 1;
+    });
+
+    const points: TechnicianPoint[] = [];
+    grouped.forEach((row, id) => {
+      points.push({
+        id,
+        name: id === 'sin_asignar' ? 'Sin asignar' : technicianNames[id] || 'Tecnico',
+        avg: row.total > 0 ? row.sum / row.total : 0,
+        total: row.total,
+        critical: row.critical,
+      });
+    });
+
+    return points
+      .sort((a, b) => a.avg - b.avg)
+      .slice(0, 6);
+  }, [metrics, technicianNames]);
+
+  const lineChartPoints = useMemo(() => {
+    if (trend7d.length === 0) return '';
+    return trend7d
+      .map((point, index) => {
+        const x = (index / Math.max(trend7d.length - 1, 1)) * 100;
+        const y = 100 - Math.max(0, Math.min(point.avg, 100));
+        return `${x},${y}`;
+      })
+      .join(' ');
+  }, [trend7d]);
 
   if (loading) {
     return <div className="surface-card h-96 animate-pulse" />;
@@ -292,6 +409,105 @@ export function SLAMetricsPanel() {
         </div>
       </section>
 
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="surface-card p-5">
+          <p className="eyebrow">Grafico 1</p>
+          <h3 className="mt-1 text-base font-semibold text-[#111111]">Cumplimiento por prioridad</h3>
+          <div className="mt-4 space-y-3">
+            {priorityChart.map((item) => {
+              const color = item.priority === 'high' ? '#9f2f2d' : item.priority === 'medium' ? '#956400' : '#1f6c9f';
+              return (
+                <div key={item.priority} className="grid grid-cols-[90px_1fr_70px] gap-3 items-center">
+                  <span className="text-sm text-[#2f3437] font-medium">{item.label}</span>
+                  <div className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.max(0, Math.min(item.avg, 100))}%`, backgroundColor: color }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-[#111111] text-right">{item.avg.toFixed(1)}%</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-xs text-[#787774]">Referencia: objetivo minimo 95% por prioridad.</p>
+        </div>
+
+        <div className="surface-card p-5">
+          <p className="eyebrow">Grafico 2</p>
+          <h3 className="mt-1 text-base font-semibold text-[#111111]">Tendencia SLA ultimos 7 dias</h3>
+          <div className="mt-4 rounded-lg border border-[#EAEAEA] bg-[#fdfdfc] p-3">
+            <svg viewBox="0 0 100 100" className="w-full h-36" preserveAspectRatio="none" aria-label="Tendencia de SLA">
+              <polyline
+                fill="none"
+                stroke="#d8d4cc"
+                strokeWidth="1"
+                points="0,50 100,50"
+              />
+              <polyline
+                fill="none"
+                stroke="#111111"
+                strokeWidth="2"
+                points={lineChartPoints}
+              />
+              {trend7d.map((point, index) => {
+                const x = (index / Math.max(trend7d.length - 1, 1)) * 100;
+                const y = 100 - Math.max(0, Math.min(point.avg, 100));
+                return <circle key={point.day + index} cx={x} cy={y} r="1.7" fill="#111111" />;
+              })}
+            </svg>
+            <div className="mt-2 grid grid-cols-7 gap-1 text-[11px] text-[#787774]">
+              {trend7d.map((point) => (
+                <span key={point.day} className="text-center">{point.day}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="surface-card p-5">
+        <p className="eyebrow">Grafico 3</p>
+        <h3 className="mt-1 text-base font-semibold text-[#111111]">SLA por tecnico (foco de riesgo)</h3>
+        <div className="mt-4 space-y-3">
+          {technicianChart.length === 0 ? (
+            <p className="text-sm text-[#787774] m-0">Sin datos suficientes por tecnico.</p>
+          ) : (
+            technicianChart.map((tech) => {
+              const state = getSLAState(tech.avg);
+              return (
+                <div key={tech.id} className="grid grid-cols-[1fr_160px] gap-3 items-center">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="m-0 text-sm font-medium text-[#111111]">{tech.name}</p>
+                      <p className="m-0 text-xs text-[#787774]">{tech.total} tickets</p>
+                    </div>
+                    <div className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${Math.max(0, Math.min(tech.avg, 100))}%`, backgroundColor: state.text }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <span
+                      className="status-chip"
+                      style={{
+                        color: state.text,
+                        backgroundColor: state.bg,
+                        border: `1px solid ${state.border}`,
+                      }}
+                    >
+                      {state.label}
+                    </span>
+                    <span className="text-sm font-semibold text-[#111111] min-w-[52px] text-right">{tech.avg.toFixed(1)}%</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
       <section className="surface-card overflow-hidden">
         <div className="border-b border-[#EAEAEA] px-5 py-4 bg-[#FBFBFA]">
           <p className="eyebrow">Prioridad inmediata</p>
@@ -347,7 +563,10 @@ export function SLAMetricsPanel() {
                         {metric.sla_percent.toFixed(1)}%
                       </td>
                       <td className="px-5 py-4 text-sm">
-                        <span className="status-chip" style={{ color: '#9f2f2d', backgroundColor: '#fdebec', border: '1px solid #f3c1c1' }}>
+                        <span
+                          className="status-chip"
+                          style={{ color: '#9f2f2d', backgroundColor: '#fdebec', border: '1px solid #f3c1c1' }}
+                        >
                           Critico
                         </span>
                       </td>
