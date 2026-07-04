@@ -49,13 +49,18 @@ interface AppContextType {
 
 const SESSION_KEY = "coordinatech_session";
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+const ADMIN_FALLBACK_EMAIL = "maria.gonzalez@company.com";
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 const ADMIN_FALLBACK_PASSWORD = "admin123";
 const ADMIN_NAME = process.env.NEXT_PUBLIC_ADMIN_NAME || "Administrator";
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 function isConfiguredAdminLogin(email: string, password: string): boolean {
-  if (!ADMIN_EMAIL) {
+  const validEmails = [ADMIN_EMAIL, ADMIN_FALLBACK_EMAIL].filter(
+    (candidate): candidate is string => Boolean(candidate),
+  );
+
+  if (validEmails.length === 0) {
     return false;
   }
 
@@ -63,7 +68,7 @@ function isConfiguredAdminLogin(email: string, password: string): boolean {
     (candidate): candidate is string => Boolean(candidate),
   );
 
-  return email === ADMIN_EMAIL && validPasswords.includes(password);
+  return validEmails.includes(email) && validPasswords.includes(password);
 }
 
 function toId(prefix: string): string {

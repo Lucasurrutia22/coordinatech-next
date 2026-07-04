@@ -13,6 +13,7 @@ import { UserRole } from "@/types/domain";
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAppContext();
+  const fallbackAdminEmail = "maria.gonzalez@company.com";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,7 +60,10 @@ export default function LoginPage() {
 
     // Auto-detect role: admin email uses admin path, all others use tech path
     const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-    const role: UserRole = adminEmail && email === adminEmail ? "admin" : "tech";
+    const adminEmails = [adminEmail, fallbackAdminEmail].filter(
+      (candidate): candidate is string => Boolean(candidate),
+    );
+    const role: UserRole = adminEmails.includes(email) ? "admin" : "tech";
     const success = await login(email, password, role);
     setLoading(false);
 
