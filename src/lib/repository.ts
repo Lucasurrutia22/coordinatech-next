@@ -343,3 +343,27 @@ export async function createTechnician(technician: Technician): Promise<void> {
   const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
   await saveLocal(TECHS_KEY, [technician, ...current]);
 }
+
+export async function updateTechnician(id: string, payload: Partial<Technician>): Promise<void> {
+  // Igual que updateTicket: el almacenamiento local se actualiza primero y siempre.
+  const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
+  const updated = current.map((item) => (item.id === id ? { ...item, ...payload } : item));
+  await saveLocal(TECHS_KEY, updated);
+
+  if (hasSupabaseEnv && supabase) {
+    try {
+      const validFields: (keyof Technician)[] = ["name", "email", "phone", "password", "active"];
+      const filteredPayload = Object.fromEntries(
+        Object.entries(payload).filter(([key]) => validFields.includes(key as keyof Technician)),
+      );
+
+      const { error } = await supabase.from("technicians").update(filteredPayload).eq("id", id);
+      if (error) {
+        console.warn(`updateTechnician: Supabase falló para ${id}:`, error);
+        // No relanzar: el almacenamiento local ya está actualizado.
+      }
+    } catch (err) {
+      console.warn(`updateTechnician: excepción de Supabase para ${id}:`, err);
+    }
+  }
+}

@@ -18,6 +18,7 @@ import {
   getTechnicians,
   getTickets,
   getWorkOrders,
+  updateTechnician,
   updateTicket,
 } from "@/lib/repository";
 import { calculateSLACompliance, groupTicketsBySLAStatus } from "@/lib/sla";
@@ -36,6 +37,7 @@ interface AppContextType {
   addTicket: (ticket: Omit<Ticket, "id" | "created_at">) => Promise<void>;
   editTicket: (id: string, payload: Partial<Ticket>) => Promise<void>;
   addTechnician: (technician: Omit<Technician, "id" | "created_at">) => Promise<void>;
+  editTechnician: (id: string, payload: Partial<Technician>) => Promise<void>;
   addWorkOrder: (data: Omit<WorkOrder, "id" | "submitted_at">) => Promise<void>;
   addIncompleteReport: (data: Omit<IncompleteReport, "id" | "reported_at">) => Promise<void>;
   // Métodos de filtrado por rol
@@ -270,6 +272,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [refreshData],
   );
 
+  const editTechnicianHandler = useCallback(
+    async (id: string, payload: Partial<Technician>) => {
+      await updateTechnician(id, payload);
+      await refreshData();
+    },
+    [refreshData],
+  );
+
   const addWorkOrderHandler = useCallback(
     async (data: Omit<WorkOrder, "id" | "submitted_at">) => {
       const payload: WorkOrder = {
@@ -310,6 +320,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTicket: addTicketHandler,
       editTicket: editTicketHandler,
       addTechnician: addTechnicianHandler,
+      editTechnician: editTechnicianHandler,
       addWorkOrder: addWorkOrderHandler,
       addIncompleteReport: addIncompleteReportHandler,
       // Filtro por rol: admin ve todos, técnico solo sus tickets ACTIVOS (excluyendo archivados y completados)
@@ -355,6 +366,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addTicketHandler,
       editTicketHandler,
       addTechnicianHandler,
+      editTechnicianHandler,
       addWorkOrderHandler,
       addIncompleteReportHandler,
     ],

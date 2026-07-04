@@ -28,19 +28,25 @@ export const updateTicketSchema = createTicketSchema.partial().extend({
     .optional(),
 });
 
-// Esquema para crear técnico
+// Esquema para crear técnico — alineado con la interfaz Technician (src/types/domain.ts)
 export const createTechnicianSchema = z.object({
-  email: z.string()
-    .email('Email inválido')
-    .max(100),
   name: z.string()
     .min(3, 'El nombre debe tener al menos 3 caracteres')
     .max(100),
+  email: z.string()
+    .email('Email inválido')
+    .max(100),
   phone: z.string()
     .regex(/^[\d\s\-\+]+$/, 'Teléfono inválido')
-    .optional()
-    .nullable(),
-  specialties: z.array(z.string()).optional(),
+    .min(6, 'Teléfono inválido'),
+  password: z.string()
+    .min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  active: z.boolean().optional(),
+});
+
+// Esquema para editar técnico — la contraseña es opcional (solo se cambia si se escribe una nueva)
+export const updateTechnicianSchema = createTechnicianSchema.partial().extend({
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional().or(z.literal('')),
 });
 
 // Esquema para login

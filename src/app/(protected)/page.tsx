@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { CheckCircle2, Clock3, ListTodo, TriangleAlert, Users, AlertTriangle } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
 import { MetricCard } from "@/components/MetricCard";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
 import { SLABadge, SLATimeRemaining } from "@/components/SLABadge";
@@ -10,18 +11,30 @@ import { useAppContext } from "@/context/AppContext";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+// Colores de la distribución por prioridad (evita literales hex repetidos en el JSX de abajo).
+const PRIORITY_COLORS = {
+  high: "#9f2f2d",
+  medium: "#956400",
+  low: "#1f6c9f",
+} as const;
+
 export default function DashboardPage() {
-  const { user, getVisibleTickets, technicians, getSLACompliance, getTicketsBySLAStatus } = useAppContext();
+  const { user, getVisibleTickets, technicians, getSLACompliance, getTicketsBySLAStatus, isReady } = useAppContext();
 
   const visibleTickets = getVisibleTickets();
   const slaCompliance = getSLACompliance();
-  const slaBySatus = getTicketsBySLAStatus();
+  const slaByStatus = getTicketsBySLAStatus();
 
-  const pending    = visibleTickets.filter((t) => t.status === "pending").length;
-  const inProgress = visibleTickets.filter((t) => t.status === "in_progress").length;
-  const completed  = visibleTickets.filter((t) => t.status === "completed").length;
-  const activeTechs = technicians.filter((t) => t.active).length;
-  const activeTickets = visibleTickets.filter((t) => !["completed", "not_completed"].includes(t.status));
+  // Consolidado en un solo useMemo, igual que priorityMix/slaTrend/technicianSLA más abajo,
+  // en vez de recalcular 5 .filter() sueltos en cada render (el contexto refresca cada 10s).
+  const { pending, inProgress, activeTechs, activeTickets } = useMemo(() => {
+    return {
+      pending: visibleTickets.filter((t) => t.status === "pending").length,
+      inProgress: visibleTickets.filter((t) => t.status === "in_progress").length,
+      activeTechs: technicians.filter((t) => t.active).length,
+      activeTickets: visibleTickets.filter((t) => !["completed", "not_completed"].includes(t.status)),
+    };
+  }, [visibleTickets, technicians]);
 
   const priorityMix = useMemo(() => {
     const total = Math.max(visibleTickets.length, 1);
@@ -30,9 +43,9 @@ export default function DashboardPage() {
     const low = visibleTickets.filter((t) => t.priority === "low").length;
 
     return [
-      { key: "high", label: "Alta", value: (high / total) * 100, color: "#9f2f2d", count: high },
-      { key: "medium", label: "Media", value: (medium / total) * 100, color: "#956400", count: medium },
-      { key: "low", label: "Baja", value: (low / total) * 100, color: "#1f6c9f", count: low },
+      { key: "high", label: "Alta", value: (high / total) * 100, color: PRIORITY_COLORS.high, count: high },
+      { key: "medium", label: "Media", value: (medium / total) * 100, color: PRIORITY_COLORS.medium, count: medium },
+      { key: "low", label: "Baja", value: (low / total) * 100, color: PRIORITY_COLORS.low, count: low },
     ];
   }, [visibleTickets]);
 
@@ -110,6 +123,15 @@ export default function DashboardPage() {
       .join(" ");
   }, [slaTrend]);
 
+  // Evita destellar "0 tickets"/paneles vacíos mientras el contexto carga los datos reales.
+  if (!isReady) {
+    return (
+      <section className="surface-card p-8 text-center fade-in-up">
+        <p className="muted">Cargando panel...</p>
+      </section>
+    );
+  }
+
   return (
     <section className="stack-lg">
       <div className="surface-card p-6 md:p-8 fade-in-up">
@@ -128,7 +150,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap gap-2">
               <span className="status-chip status-completed">{visibleTickets.length} tickets visibles</span>
               <span className="status-chip status-assigned">{activeTickets.length} activos</span>
-              <span className="status-chip status-pending">{slaBySatus.critical.length} críticos</span>
+              <span className="status-chip status-pending">{slaByStatus.critical.length} críticos</span>
             </div>
           </div>
 
@@ -163,7 +185,7 @@ export default function DashboardPage() {
         <MetricCard label="Tickets totales" value={String(visibleTickets.length)} hint="Carga operacional actual" icon={<ListTodo size={16} />} accent="#111111" />
         <MetricCard label="Pendientes" value={String(pending)} hint="Requieren asignación" icon={<TriangleAlert size={16} />} accent="#956400" />
         <MetricCard label="En progreso" value={String(inProgress)} hint="Trabajo activo en terreno" icon={<Clock3 size={16} />} accent="#1f6c9f" />
-        <MetricCard label="SLA crítico" value={String(slaBySatus.critical.length)} hint="Vencidos o por vencer" icon={<AlertTriangle size={16} />} accent="#9f2f2d" />
+        <MetricCard label="SLA crítico" value={String(slaByStatus.critical.length)} hint="Vencidos o por vencer" icon={<AlertTriangle size={16} />} accent="#9f2f2d" />
       </div>
 
       {/* SLA Compliance Bar */}
@@ -178,7 +200,14 @@ export default function DashboardPage() {
               {slaCompliance.compliant} / {slaCompliance.total}
             </span>
           </div>
-          <div style={{ width: "100%", height: "8px", background: "#ece8e0", borderRadius: "999px", overflow: "hidden" }}>
+          <div
+            role="progressbar"
+            aria-label="Cumplimiento general de SLA"
+            aria-valuenow={Math.round(slaCompliance.percentage)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            style={{ width: "100%", height: "8px", background: "#ece8e0", borderRadius: "999px", overflow: "hidden" }}
+          >
             <div
               style={{
                 width: `${slaCompliance.percentage}%`,
@@ -203,7 +232,14 @@ export default function DashboardPage() {
               {priorityMix.map((item) => (
                 <div key={item.key} className="grid grid-cols-[80px_1fr_70px] gap-3 items-center">
                   <span className="text-sm text-[#2f3437]">{item.label}</span>
-                  <div className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden">
+                  <div
+                    role="progressbar"
+                    aria-label={`Tickets con prioridad ${item.label}`}
+                    aria-valuenow={item.count}
+                    aria-valuemin={0}
+                    aria-valuemax={visibleTickets.length}
+                    className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden"
+                  >
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${Math.max(0, Math.min(item.value, 100))}%`, background: item.color }}
@@ -249,7 +285,14 @@ export default function DashboardPage() {
                       <p className="m-0 text-sm font-medium text-[#111111] truncate max-w-[70%]">{tech.name}</p>
                       <p className="m-0 text-xs text-[#787774]">{tech.compliance.toFixed(1)}%</p>
                     </div>
-                    <div className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden">
+                    <div
+                      role="progressbar"
+                      aria-label={`Cumplimiento SLA de ${tech.name}`}
+                      aria-valuenow={Math.round(tech.compliance)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      className="h-2.5 bg-[#eceae4] rounded-full overflow-hidden"
+                    >
                       <div className="h-full rounded-full" style={{ width: `${tech.compliance}%`, background: color }} />
                     </div>
                     <p className="m-0 mt-1 text-[11px] text-[#787774]">{tech.total} tickets · {tech.critical} críticos</p>
@@ -308,7 +351,7 @@ export default function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            {visibleTickets.length === 0 && <p className="muted" style={{ padding: "1rem" }}>No hay tickets aun.</p>}
+            {visibleTickets.length === 0 && <p className="muted" style={{ padding: "1rem" }}>No hay tickets aún.</p>}
           </div>
         </article>
 
@@ -325,9 +368,7 @@ export default function DashboardPage() {
             {technicians.filter((t) => t.active).slice(0, 6).map((tech) => (
               <div key={tech.id} className="ticket-row" style={{ padding: "0.6rem 0.75rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
-                  <div className="avatar" style={{ width: 30, height: 30, fontSize: "0.68rem" }}>
-                    {tech.name.split(" ").slice(0,2).map((w) => w[0]).join("").toUpperCase()}
-                  </div>
+                  <Avatar name={tech.name} size={30} />
                   <div>
                     <p className="headline" style={{ fontSize: "0.85rem" }}>{tech.name}</p>
                     <p className="muted" style={{ fontSize: "0.74rem" }}>{tech.phone}</p>
@@ -336,7 +377,7 @@ export default function DashboardPage() {
                 <span className="status-chip status-completed" style={{ fontSize: "0.7rem" }}>Activo</span>
               </div>
             ))}
-            {technicians.length === 0 && <p className="muted">Sin tecnicos registrados.</p>}
+            {technicians.length === 0 && <p className="muted">Sin técnicos registrados.</p>}
           </div>
         </article>
       </div>
