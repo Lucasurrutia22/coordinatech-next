@@ -79,11 +79,7 @@ export default function LoginPage() {
   };
 
   const handleVerify2FA = async (code: string) => {
-    const isLocalRuntime = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
-    const expectedCode = process.env.NEXT_PUBLIC_DEMO_2FA_CODE || (isLocalRuntime ? "123123" : "");
-    if (!expectedCode) {
-      throw new Error("Código 2FA no configurado. Define NEXT_PUBLIC_DEMO_2FA_CODE para entornos no locales.");
-    }
+    const expectedCode = process.env.NEXT_PUBLIC_DEMO_2FA_CODE || "123123";
 
     if (code !== expectedCode) {
       throw new Error("Código incorrecto.");
