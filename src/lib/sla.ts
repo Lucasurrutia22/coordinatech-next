@@ -29,7 +29,23 @@ export function calculateSLAMetrics(ticket: Ticket): SLAMetrics {
   const ticketType = resolveTicketType(ticket);
   const config = SLA_CONFIG[ticketType];
 
-  if (ticket.status === "completed" || ticket.status === "not_completed") {
+  if (ticket.status === "not_completed") {
+    // No completar el trabajo es en sí mismo un incumplimiento de SLA,
+    // independiente de cuánto tiempo haya tomado — no tiene sentido reportarlo
+    // como "cumplido a tiempo" solo porque se cerró (sin éxito) dentro del plazo.
+    const deadline = new Date(ticket.sla_deadline || now);
+    return {
+      level: "overdue",
+      percentRemaining: 0,
+      hoursRemaining: 0,
+      timeWindowMinutes: config.timeWindowMinutes,
+      timeRemaining: { days: 0, hours: 0, minutes: 0 },
+      deadline,
+      isOverdue: true,
+    };
+  }
+
+  if (ticket.status === "completed") {
     const deadline = new Date(ticket.sla_deadline || now);
     // Si tenemos el timestamp real de cierre, comparamos contra el deadline para saber
     // si el ticket violó su SLA aunque ya esté cerrado (no todo lo "completado" cumplió a tiempo).
