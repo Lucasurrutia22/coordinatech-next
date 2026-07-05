@@ -61,6 +61,9 @@ function normalizeTicket(raw: Record<string, unknown>): Ticket {
   const ticket = {
     ...raw,
     ticket_type: (raw.ticket_type as Ticket["ticket_type"]) ?? "support",
+    // Supabase guarda "sin asignar" como NULL (por la FK a technicians.id); el resto
+    // de la app siempre compara technician_id como string ("" = sin asignar).
+    technician_id: (raw.technician_id as string | null) ?? "",
   } as Ticket;
   return enrichTicketWithSLA(ticket);
 }
@@ -190,18 +193,28 @@ export async function createTicket(ticket: Ticket): Promise<void> {
   }
 
   if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
     try {
       // Solo guardar campos que existen en la tabla de Supabase
       const { id, ticket_type, title, description, address, status, priority, scheduled_date, technician_id, created_at } = enriched;
-      const payload = { id, ticket_type, title, description, address, status, priority, scheduled_date, technician_id, created_at };
-      
-      const { error } = await supabase.from("tickets").insert([payload]);
-      if (error) {
-        throw new Error(`Supabase insert error: ${error.message} (${error.code})`);
-      }
-      return;
-    } catch (err) {
-      console.warn("Supabase createTicket fallo, guardando en almacenamiento local:", err);
+      const payload = {
+        id, ticket_type, title, description, address, status, priority, scheduled_date, created_at,
+        // technician_id es FK a technicians(id): "" (sin asignar) NO matchea NULL para
+        // Postgres y viola la constraint — hay que normalizarlo antes de enviarlo.
+        technician_id: technician_id || null,
+      };
+
+      response = await supabase.from("tickets").insert([payload]);
+    } catch (networkErr) {
+      console.warn("Supabase createTicket inalcanzable, el ticket queda solo en almacenamiento local:", networkErr);
+    }
+
+    if (response) {
+      if (!response.error) return;
+      // Supabase respondió con un rechazo real (no una falla de red) — no debe
+      // quedar solo en local, porque nunca llegaría a sincronizar y sería invisible
+      // para cualquier otro dispositivo/sesión (ej. el técnico asignado).
+      throw new Error(response.error.message || "No se pudo crear el ticket en Supabase.");
     }
   }
 }
@@ -227,24 +240,30 @@ export async function updateTicket(id: string, payload: Partial<Ticket>): Promis
 
   // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
     try {
       // Filtrar solo campos que existen en la tabla de Supabase
       const validFields: (keyof Ticket)[] = ['ticket_type', 'title', 'description', 'address', 'status', 'priority', 'scheduled_date', 'technician_id', 'is_archived'];
-      const filteredPayload = Object.fromEntries(
+      const filteredPayload: Record<string, unknown> = Object.fromEntries(
         Object.entries(payload).filter(([key]) => validFields.includes(key as keyof Ticket))
       );
-      
-      const { error } = await supabase.from("tickets").update(filteredPayload).eq("id", id);
-      if (error) {
-        console.warn(`updateTicket: Supabase fallo para ${id}:`, error);
-        // No relanzar el error aqui: los cambios ya estan en almacenamiento local.
+      // Mismo problema de FK que en createTicket: "" no matchea NULL.
+      if ('technician_id' in filteredPayload && !filteredPayload.technician_id) {
+        filteredPayload.technician_id = null;
       }
-    } catch (err) {
-      console.warn(`updateTicket: Excepcion de Supabase para ${id}:`, err);
-      // No relanzar: almacenamiento local ya esta actualizado.
+
+      response = await supabase.from("tickets").update(filteredPayload).eq("id", id);
+    } catch (networkErr) {
+      console.warn(`updateTicket: Supabase inalcanzable para ${id}, el cambio queda solo en almacenamiento local:`, networkErr);
+    }
+
+    if (response && response.error) {
+      // Rechazo real de Supabase (no falla de red) — el almacenamiento local ya
+      // tiene el cambio optimista, pero hay que avisar para que el llamador (API
+      // route o el fallback del cliente) revierta y refresque en vez de asumir éxito.
+      throw new Error(response.error.message || `No se pudo actualizar el ticket ${id} en Supabase.`);
     }
   }
-  // No relanzar errores aqui: almacenamiento local ya se actualizo.
 }
 
 export async function getTicketById(id: string): Promise<Ticket | undefined> {

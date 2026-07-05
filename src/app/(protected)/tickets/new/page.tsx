@@ -9,13 +9,6 @@ export default function NewTicketPage() {
   const { technicians, tickets, addTicket, user } = useAppContext();
   const router = useRouter();
 
-  if (user?.role === "tech") {
-    router.replace("/tickets");
-    return null;
-  }
-
-  const defaultTech = useMemo(() => technicians[0]?.id ?? "", [technicians]);
-
   const [ticketType, setTicketType] = useState<TicketType>("support");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -24,6 +17,7 @@ export default function NewTicketPage() {
   const [priority, setPriority] = useState<TicketPriority>("medium");
   const [technicianId, setTechnicianId] = useState(""); // Vacío = sin asignar
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   // Preview del ID correlativo
   const previewId = useMemo(() => {
@@ -33,6 +27,11 @@ export default function NewTicketPage() {
     return `${prefix}-${String(count + 1).padStart(3, "0")}`;
   }, [ticketType, tickets]);
 
+  if (user?.role === "tech") {
+    router.replace("/tickets");
+    return null;
+  }
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (submitting) {
@@ -40,6 +39,7 @@ export default function NewTicketPage() {
     }
 
     setSubmitting(true);
+    setSubmitError("");
 
     try {
       await addTicket({
@@ -53,7 +53,8 @@ export default function NewTicketPage() {
         technician_id: technicianId,
       });
       router.push("/tickets");
-    } finally {
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "No se pudo crear el ticket. Intenta de nuevo.");
       setSubmitting(false);
     }
   };
@@ -161,6 +162,7 @@ export default function NewTicketPage() {
             ))}
           </select>
         </label>
+        {submitError && <p className="error-text full">{submitError}</p>}
         <div className="full row-end">
           <button type="submit" className="primary-btn" disabled={submitting}>
             {submitting ? "Guardando..." : "Guardar ticket"}

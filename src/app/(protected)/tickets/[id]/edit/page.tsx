@@ -10,16 +10,18 @@ export default function EditTicketPage() {
   const router = useRouter();
   const { tickets, editTicket, technicians, user } = useAppContext();
 
-  if (user?.role === "tech") {
-    router.replace("/tickets");
-    return null;
-  }
-
   const ticket = useMemo(() => tickets.find((item) => item.id === id), [tickets, id]);
 
   const [status, setStatus] = useState<TicketStatus>(ticket?.status ?? "pending");
   const [priority, setPriority] = useState<TicketPriority>(ticket?.priority ?? "medium");
   const [technicianId, setTechnicianId] = useState(ticket?.technician_id ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  if (user?.role === "tech") {
+    router.replace("/tickets");
+    return null;
+  }
 
   if (!ticket) {
     return <section className="panel">Ticket no encontrado.</section>;
@@ -27,12 +29,19 @@ export default function EditTicketPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    await editTicket(ticket.id, {
-      status,
-      priority,
-      technician_id: technicianId,
-    });
-    router.push(`/tickets/${ticket.id}`);
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await editTicket(ticket.id, {
+        status,
+        priority,
+        technician_id: technicianId,
+      });
+      router.push(`/tickets/${ticket.id}`);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "No se pudo actualizar el ticket. Intenta de nuevo.");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -70,9 +79,10 @@ export default function EditTicketPage() {
             ))}
           </select>
         </label>
+        {submitError && <p className="error-text full">{submitError}</p>}
         <div className="row-end full">
-          <button type="submit" className="primary-btn">
-            Actualizar
+          <button type="submit" className="primary-btn" disabled={submitting}>
+            {submitting ? "Actualizando..." : "Actualizar"}
           </button>
         </div>
       </form>
