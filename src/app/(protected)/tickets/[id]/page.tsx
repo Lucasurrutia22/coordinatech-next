@@ -209,10 +209,14 @@ export default function TicketDetailPage() {
         console.warn("No se pudo guardar el reporte de evidencia:", err);
       }
 
-      // 2. Actualizar el ticket a "not_completed" y limpiar técnico
+      // 2. Actualizar el ticket a "not_completed". El técnico NO se limpia acá:
+      // eso rompía la visibilidad del propio técnico sobre su historial (los
+      // filtros de "Mis Tickets Completados" dependen de technician_id === user.id),
+      // dejando el ticket huérfano hasta que un admin lo reasignara. Limpiar
+      // technician_id es responsabilidad exclusiva de handleReassign (admin),
+      // que ya lo hace como parte del flujo real de reasignación.
       await editTicket(ticket.id, {
         status: "not_completed",
-        technician_id: "" // Limpiar para reasignación
       });
 
       // 2.4. Cerrar cronómetro (cierra pausas abiertas y registra el evento
