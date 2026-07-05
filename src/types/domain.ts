@@ -42,6 +42,7 @@ export interface Ticket {
   sla_status?: SLALevel; // Estado del SLA
   is_archived?: boolean; // Marcado como archivado (soft delete)
   client_name?: string; // Agregado para la tabla
+  work_ended_at?: string; // Timestamp real de cierre (lo persiste completeWorkTimer) — usado para saber si un ticket cerrado violó su SLA
 }
 
 // ── SLA: política única por tipo de ticket (fuente de verdad — consumida por src/lib/sla.ts) ──

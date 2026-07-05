@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useMemo } from 'react';
+import { useAppContext } from '@/context/AppContext';
 import { calculateSLAMetrics } from '@/lib/sla';
-import type { Ticket } from '@/types/domain';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -24,18 +23,6 @@ interface SLAMetric {
   technician_id?: string;
   sla_percent: number;
   sla_status: 'critical' | 'warning' | 'ok' | 'overdue' | 'completed';
-}
-
-interface TicketData {
-  id: string;
-  description: string;
-  client_name?: string;
-  priority: 'low' | 'medium' | 'high';
-  status: string;
-  created_at: string;
-  technician_id?: string;
-  ticket_type?: string;
-  sla_deadline?: string;
 }
 
 interface SLAStats {
@@ -101,108 +88,56 @@ function getDayLabel(date: Date) {
 }
 
 export function SLAMetricsPanel() {
-  const [metrics, setMetrics] = useState<SLAMetric[]>([]);
-  const [stats, setStats] = useState<SLAStats | null>(null);
-  const [technicianNames, setTechnicianNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Misma fuente de datos que el resto de la app (tickets/page.tsx, dashboard, etc.):
+  // AppContext ya fusiona almacenamiento local + Supabase y enriquece cada ticket con SLA.
+  // Antes este panel consultaba Supabase directo, por lo que podía mostrar datos
+  // distintos (o vacíos) respecto a lo que el admin ya veía en el resto del sistema.
+  const { tickets, technicians, isReady } = useAppContext();
 
-  useEffect(() => {
-    void loadMetrics();
-    const interval = setInterval(() => {
-      void loadMetrics();
-    }, 30000);
+  const technicianNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    technicians.forEach((tech) => { names[tech.id] = tech.name; });
+    return names;
+  }, [technicians]);
 
-    return () => clearInterval(interval);
-  }, []);
-
-  async function loadMetrics() {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [ticketsSettled, techniciansSettled] = await Promise.allSettled([
-        supabase.from('tickets').select('*').order('created_at', { ascending: false }),
-        supabase.from('technicians').select('id, name'),
-      ]);
-
-      if (ticketsSettled.status === 'rejected') {
-        throw ticketsSettled.reason;
-      }
-
-      const ticketsResult = ticketsSettled.value;
-      if (ticketsResult.error) throw ticketsResult.error;
-
-      const names: Record<string, string> = {};
-      if (techniciansSettled.status === 'fulfilled' && !techniciansSettled.value.error) {
-        (techniciansSettled.value.data || []).forEach((tech: { id: string; name: string }) => {
-          names[tech.id] = tech.name;
-        });
-      }
-      setTechnicianNames(names);
-
-      if (!ticketsResult.data) {
-        setMetrics([]);
-        setStats({
-          totalTickets: 0,
-          criticalCount: 0,
-          warningCount: 0,
-          okCount: 0,
-          completedCount: 0,
-          averageSLA: 0,
-        });
-        return;
-      }
-
-      const slaMetrics: SLAMetric[] = (ticketsResult.data as TicketData[])
-        .filter((ticket) => Boolean(ticket.created_at))
-        .map((ticket: TicketData) => {
-        const parsedCreatedAt = new Date(ticket.created_at);
-        const validCreatedAt = Number.isNaN(parsedCreatedAt.getTime()) ? new Date() : parsedCreatedAt;
-        const sla = calculateSLAMetrics({
-          ...ticket,
-          created_at: validCreatedAt.toISOString(),
-        } as unknown as Ticket);
+  const metrics = useMemo<SLAMetric[]>(() => {
+    return tickets
+      .filter((ticket) => Boolean(ticket.created_at) && !ticket.is_archived)
+      .map((ticket) => {
+        const sla = calculateSLAMetrics(ticket);
         return {
           id: ticket.id,
           description: ticket.description,
           client_name: ticket.client_name || 'Sin cliente',
           priority: ticket.priority,
           status: ticket.status,
-          created_at: validCreatedAt.toISOString(),
+          created_at: ticket.created_at as string,
           technician_id: ticket.technician_id,
           sla_percent: sla.percentRemaining,
           sla_status: sla.level,
         };
       });
+  }, [tickets]);
 
-      setMetrics(slaMetrics);
+  const stats = useMemo<SLAStats>(() => {
+    // "critical" agrupa crítico + vencido para este resumen ejecutivo (ambos requieren atención inmediata).
+    const criticalCount = metrics.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').length;
+    const warningCount = metrics.filter((item) => item.sla_status === 'warning').length;
+    const okCount = metrics.filter((item) => item.sla_status === 'ok').length;
+    const completedCount = metrics.filter((item) => item.sla_status === 'completed').length;
+    const averageSLA = metrics.length > 0
+      ? metrics.reduce((sum, item) => sum + item.sla_percent, 0) / metrics.length
+      : 0;
 
-      // "critical" agrupa crítico + vencido para este resumen ejecutivo (ambos requieren atención inmediata).
-      const criticalCount = slaMetrics.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').length;
-      const warningCount = slaMetrics.filter((item) => item.sla_status === 'warning').length;
-      const okCount = slaMetrics.filter((item) => item.sla_status === 'ok').length;
-      const completedCount = slaMetrics.filter((item) => item.sla_status === 'completed').length;
-      const averageSLA =
-        slaMetrics.length > 0
-          ? slaMetrics.reduce((sum, item) => sum + item.sla_percent, 0) / slaMetrics.length
-          : 0;
-
-      setStats({
-        totalTickets: slaMetrics.length,
-        criticalCount,
-        warningCount,
-        okCount,
-        completedCount,
-        averageSLA,
-      });
-    } catch (err) {
-      console.error('Error loading SLA metrics:', err);
-      setError('No fue posible cargar las metricas SLA.');
-    } finally {
-      setLoading(false);
-    }
-  }
+    return {
+      totalTickets: metrics.length,
+      criticalCount,
+      warningCount,
+      okCount,
+      completedCount,
+      averageSLA,
+    };
+  }, [metrics]);
 
   const topCritical = useMemo(
     () => metrics.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').slice(0, 6),
@@ -297,22 +232,14 @@ export function SLAMetricsPanel() {
       .join(' ');
   }, [trend7d]);
 
-  if (loading) {
+  if (!isReady) {
     return <div className="surface-card h-96 animate-pulse" />;
   }
 
-  if (error) {
-    return (
-      <div className="surface-card p-5 text-sm text-[#9f2f2d] border-[#f3c1c1] bg-[#fdebec]">
-        {error}
-      </div>
-    );
-  }
-
-  if (!stats) {
+  if (metrics.length === 0) {
     return (
       <div className="surface-card p-5 text-sm text-[#956400] border-[#f0dea6] bg-[#fbf3db]">
-        No hay datos SLA disponibles.
+        No hay tickets registrados todavia para calcular metricas SLA.
       </div>
     );
   }
@@ -423,7 +350,7 @@ export function SLAMetricsPanel() {
             <p className="m-0"><strong>Gap actual:</strong> {gapToTarget.toFixed(1)} puntos.</p>
           </div>
           <div className="rounded-lg border border-[#EAEAEA] bg-[#fdfdfc] p-3">
-            <p className="m-0"><strong>Refresco:</strong> datos cada 30 segundos.</p>
+            <p className="m-0"><strong>Refresco:</strong> sincronizado con el resto del sistema.</p>
           </div>
         </div>
       </section>
@@ -586,7 +513,7 @@ export function SLAMetricsPanel() {
                           className="status-chip"
                           style={{ color: '#9f2f2d', backgroundColor: '#fdebec', border: '1px solid #f3c1c1' }}
                         >
-                          Critico
+                          {metric.sla_status === 'overdue' ? 'Vencido' : 'Critico'}
                         </span>
                       </td>
                     </tr>

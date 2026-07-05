@@ -30,14 +30,22 @@ export function calculateSLAMetrics(ticket: Ticket): SLAMetrics {
   const config = SLA_CONFIG[ticketType];
 
   if (ticket.status === "completed" || ticket.status === "not_completed") {
+    const deadline = new Date(ticket.sla_deadline || now);
+    // Si tenemos el timestamp real de cierre, comparamos contra el deadline para saber
+    // si el ticket violó su SLA aunque ya esté cerrado (no todo lo "completado" cumplió a tiempo).
+    // Sin ese dato (tickets cerrados antes de que se empezara a registrar) asumimos cumplido,
+    // que es el comportamiento previo — no podemos inferir retroactivamente lo que no se guardó.
+    const completedAt = ticket.work_ended_at ? new Date(ticket.work_ended_at) : null;
+    const breached = completedAt !== null && !Number.isNaN(completedAt.getTime()) && completedAt.getTime() > deadline.getTime();
+
     return {
-      level: "completed",
-      percentRemaining: 100,
+      level: breached ? "overdue" : "completed",
+      percentRemaining: breached ? 0 : 100,
       hoursRemaining: 0,
       timeWindowMinutes: config.timeWindowMinutes,
       timeRemaining: { days: 0, hours: 0, minutes: 0 },
-      deadline: new Date(ticket.sla_deadline || now),
-      isOverdue: false,
+      deadline,
+      isOverdue: breached,
     };
   }
 
