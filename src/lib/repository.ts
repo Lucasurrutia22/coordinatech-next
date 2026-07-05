@@ -315,16 +315,25 @@ export async function getWorkOrders(): Promise<WorkOrder[]> {
 }
 
 export async function createWorkOrder(order: WorkOrder): Promise<void> {
-  if (hasSupabaseEnv && supabase) {
-    try {
-      const { error } = await supabase.from("work_orders").insert([order]);
-      if (!error) return;
-    } catch (err) {
-      console.warn("Supabase createWorkOrder falló:", err);
-    }
-  }
   const current = await loadLocal<WorkOrder[]>("coordinatech_work_orders", []);
   await saveLocal("coordinatech_work_orders", [order, ...current]);
+
+  if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
+    try {
+      response = await supabase.from("work_orders").insert([order]);
+    } catch (networkErr) {
+      console.warn("Supabase createWorkOrder inalcanzable, la orden queda solo en almacenamiento local:", networkErr);
+    }
+
+    if (response && response.error) {
+      // Rechazo real de Supabase (no falla de red): la orden de trabajo es la
+      // evidencia de cierre del ticket y no quedó persistida en la fuente de
+      // verdad. Quien llama (el flujo de cierre) debe enterarse para no marcar
+      // el ticket como completado sin evidencia real guardada.
+      throw new Error(response.error.message || "No se pudo guardar la orden de trabajo en Supabase.");
+    }
+  }
 }
 
 // ── Incomplete Reports ────────────────────────────────────────
@@ -353,16 +362,23 @@ export async function getIncompleteReports(): Promise<IncompleteReport[]> {
 }
 
 export async function createIncompleteReport(report: IncompleteReport): Promise<void> {
-  if (hasSupabaseEnv && supabase) {
-    try {
-      const { error } = await supabase.from("incomplete_reports").insert([report]);
-      if (!error) return;
-    } catch (err) {
-      console.warn("Supabase createIncompleteReport falló:", err);
-    }
-  }
   const current = await loadLocal<IncompleteReport[]>("coordinatech_incomplete_reports", []);
   await saveLocal("coordinatech_incomplete_reports", [report, ...current]);
+
+  if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
+    try {
+      response = await supabase.from("incomplete_reports").insert([report]);
+    } catch (networkErr) {
+      console.warn("Supabase createIncompleteReport inalcanzable, el reporte queda solo en almacenamiento local:", networkErr);
+    }
+
+    if (response && response.error) {
+      // Rechazo real de Supabase (no falla de red): el reporte de evidencia
+      // de "no completado" no quedó persistido en la fuente de verdad.
+      throw new Error(response.error.message || "No se pudo guardar el reporte de evidencia en Supabase.");
+    }
+  }
 }
 
 export async function createTechnician(technician: Technician): Promise<void> {
