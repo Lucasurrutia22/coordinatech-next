@@ -157,6 +157,7 @@ export default function TicketDetailPage() {
   const [ncSubmitting, setNcSubmitting] = useState(false);
   const [ncError,      setNcError]      = useState("");
   const [actionError,  setActionError]  = useState("");
+  const [actionBusy,   setActionBusy]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Buscar ticket (después de hooks) ────────────────────
@@ -239,8 +240,13 @@ export default function TicketDetailPage() {
   // también escribe status "in_progress" directo a Supabase (para persistir
   // work_started_at + el evento con ubicación), pero como valor ya vigente no
   // pasa por el validador de transición — llamarlo antes rompería ese guard.
+  // actionBusy evita el doble clic: sin esto, un segundo clic antes de que el
+  // primer PATCH termine (y el estado optimista se refleje) dispara una segunda
+  // request con el mismo status ya vigente en el servidor.
   const handleStartWork = async () => {
+    if (actionBusy) return;
     setActionError("");
+    setActionBusy(true);
     try {
       await editTicket(ticket.id, { status: "in_progress" });
       if (ticket.technician_id) {
@@ -249,32 +255,46 @@ export default function TicketDetailPage() {
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo iniciar el trabajo. Intenta de nuevo.");
+    } finally {
+      setActionBusy(false);
     }
   };
   const handleAccept = async () => {
+    if (actionBusy) return;
     setActionError("");
+    setActionBusy(true);
     try {
       await editTicket(ticket.id, { status: "in_progress" });
       const location = await captureCurrentLocation();
       await startWorkTimer(ticket.id, user!.id, location);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo aceptar el trabajo. Intenta de nuevo.");
+    } finally {
+      setActionBusy(false);
     }
   };
   const handleReject = async () => {
+    if (actionBusy) return;
     setActionError("");
+    setActionBusy(true);
     try {
       await editTicket(ticket.id, { status: "pending", technician_id: "" });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo rechazar el ticket. Intenta de nuevo.");
+    } finally {
+      setActionBusy(false);
     }
   };
   const handleReassign = async () => {
+    if (actionBusy) return;
     setActionError("");
+    setActionBusy(true);
     try {
       await editTicket(ticket.id, { status: "pending", technician_id: "" });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "No se pudo reasignar el ticket. Intenta de nuevo.");
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -369,11 +389,14 @@ export default function TicketDetailPage() {
         >
           <button
             onClick={handleStartWork}
+            disabled={actionBusy}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "0.5rem 1.1rem", fontSize: "0.84rem", fontWeight: 600,
               border: "none", borderRadius: "var(--r-sm)",
-              background: "#16a34a", color: "#fff", cursor: "pointer",
+              background: "#16a34a", color: "#fff",
+              cursor: actionBusy ? "not-allowed" : "pointer",
+              opacity: actionBusy ? 0.6 : 1,
             }}
           >
             <Play size={14} /> Iniciar trabajo
@@ -387,7 +410,7 @@ export default function TicketDetailPage() {
           title="Ticket listo para iniciar"
           subtitle="Inicia el trabajo cuando estés listo en el lugar."
         >
-          <button onClick={handleStartWork} className="primary-btn">
+          <button onClick={handleStartWork} disabled={actionBusy} className="primary-btn">
             <Play size={14} /> Comenzar trabajo
           </button>
         </ActionPanel>
@@ -401,16 +424,19 @@ export default function TicketDetailPage() {
         >
           <button
             onClick={handleReject}
+            disabled={actionBusy}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               padding: "0.5rem 1rem", fontSize: "0.82rem", fontWeight: 600,
               border: "1px solid #fca5a5", borderRadius: "var(--r-sm)",
-              background: "#fff1f2", color: "#b91c1c", cursor: "pointer",
+              background: "#fff1f2", color: "#b91c1c",
+              cursor: actionBusy ? "not-allowed" : "pointer",
+              opacity: actionBusy ? 0.6 : 1,
             }}
           >
             <XCircle size={14} /> Rechazar
           </button>
-          <button onClick={handleAccept} className="primary-btn">
+          <button onClick={handleAccept} disabled={actionBusy} className="primary-btn">
             <CheckCircle2 size={14} /> Aceptar trabajo
           </button>
         </ActionPanel>
@@ -502,11 +528,14 @@ export default function TicketDetailPage() {
             <div style={{ marginTop: "0.9rem", display: "flex", justifyContent: "flex-end" }}>
               <button
                 onClick={handleReassign}
+                disabled={actionBusy}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "0.5rem 1.1rem", fontSize: "0.84rem", fontWeight: 600,
                   border: "none", borderRadius: "var(--r-sm)",
-                  background: "#ea580c", color: "#fff", cursor: "pointer",
+                  background: "#ea580c", color: "#fff",
+                  cursor: actionBusy ? "not-allowed" : "pointer",
+                  opacity: actionBusy ? 0.6 : 1,
                 }}
               >
                 <RefreshCw size={14} /> Reasignar ticket
@@ -526,11 +555,14 @@ export default function TicketDetailPage() {
         >
           <button
             onClick={handleReassign}
+            disabled={actionBusy}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "0.5rem 1.1rem", fontSize: "0.84rem", fontWeight: 600,
               border: "none", borderRadius: "var(--r-sm)",
-              background: "#ea580c", color: "#fff", cursor: "pointer",
+              background: "#ea580c", color: "#fff",
+              cursor: actionBusy ? "not-allowed" : "pointer",
+              opacity: actionBusy ? 0.6 : 1,
             }}
           >
             <RefreshCw size={14} /> Reasignar ticket

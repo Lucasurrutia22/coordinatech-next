@@ -32,6 +32,13 @@ function isValidStateTransition(currentStatus: string, newStatus: string): boole
     return false;
   }
 
+  // Reenviar el mismo status es un no-op idempotente: puede llegar por doble
+  // clic o una reconexión que reintenta una request que ya se aplicó. No es
+  // un cambio de estado real, así que no debe rechazarse como transición inválida.
+  if (currentStatus === newStatus) {
+    return true;
+  }
+
   // Las transiciones más comunes
   const allowedTransitions: Record<string, string[]> = {
     pending: ["assigned", "in_progress", "pending"], // reasignación
