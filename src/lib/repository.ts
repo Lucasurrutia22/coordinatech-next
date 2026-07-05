@@ -132,16 +132,15 @@ function dedupeTickets(tickets: Ticket[]): Ticket[] {
 }
 
 export async function getTickets(): Promise<Ticket[]> {
-  // Prioridad: retornar almacenamiento local como fuente de verdad.
   const localTickets = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
 
-  // Si tenemos tickets en almacenamiento local y Supabase no esta disponible, usar almacenamiento local.
+  // Si Supabase no esta configurado/disponible, el almacenamiento local es lo unico que hay.
   if (!hasSupabaseEnv || !supabase) {
     return localTickets.map(enrichTicketWithSLA);
   }
 
-  // Intentar sincronizar desde Supabase EN BACKGROUND, pero NO devolver datos de Supabase
-  // Esto asegura que los cambios locales NO se pierdan
+  // Supabase es la fuente de verdad cuando esta disponible; ver el comentario
+  // mas abajo sobre por que ya no se prefiere el local para tickets conocidos.
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -153,22 +152,25 @@ export async function getTickets(): Promise<Ticket[]> {
 
     clearTimeout(timeoutId);
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       // Enriquecer datos de Supabase
       const supabaseTickets = (data as Record<string, unknown>[]).map(normalizeTicket);
 
-      // Importante: solo actualizar almacenamiento local si hay tickets nuevos en Supabase.
-      // (nunca sobrescribir cambios locales)
+      // Supabase es la fuente de verdad para cualquier ticket que ya sincronizó allá:
+      // cualquier cambio de estado real (iniciar, aceptar, completar, etc.) pasa por
+      // la API route y escribe directo a Supabase, nunca al IndexedDB del navegador
+      // que hizo la request — así que preferir el local para un ticket ya existente
+      // hacía que el cambio recién guardado se viera "revertido" en la UI apenas
+      // se llamaba a refreshData(). El local solo aporta tickets creados offline
+      // que Supabase todavía no tiene (aún no sincronizados).
       const merged: Ticket[] = [];
-      const localIdSet = new Set(localTickets.map(t => t.id));
-      
-      // Agregar todos los tickets locales (preservando cambios locales)
-      merged.push(...localTickets);
-      
-      // Agregar tickets que son nuevos en Supabase (no estan en almacenamiento local)
-      supabaseTickets.forEach(supTicket => {
-        if (!localIdSet.has(supTicket.id)) {
-          merged.push(supTicket);
+      const supabaseIdSet = new Set(supabaseTickets.map(t => t.id));
+
+      merged.push(...supabaseTickets);
+
+      localTickets.forEach(localTicket => {
+        if (!supabaseIdSet.has(localTicket.id)) {
+          merged.push(localTicket);
         }
       });
 
