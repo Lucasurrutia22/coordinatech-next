@@ -156,6 +156,7 @@ export default function TicketDetailPage() {
   const [ncPhotoName,  setNcPhotoName]  = useState("");
   const [ncSubmitting, setNcSubmitting] = useState(false);
   const [ncError,      setNcError]      = useState("");
+  const [actionError,  setActionError]  = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Buscar ticket (después de hooks) ────────────────────
@@ -239,19 +240,43 @@ export default function TicketDetailPage() {
   // work_started_at + el evento con ubicación), pero como valor ya vigente no
   // pasa por el validador de transición — llamarlo antes rompería ese guard.
   const handleStartWork = async () => {
-    await editTicket(ticket.id, { status: "in_progress" });
-    if (ticket.technician_id) {
-      const location = await captureCurrentLocation();
-      await startWorkTimer(ticket.id, ticket.technician_id, location);
+    setActionError("");
+    try {
+      await editTicket(ticket.id, { status: "in_progress" });
+      if (ticket.technician_id) {
+        const location = await captureCurrentLocation();
+        await startWorkTimer(ticket.id, ticket.technician_id, location);
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo iniciar el trabajo. Intenta de nuevo.");
     }
   };
   const handleAccept = async () => {
-    await editTicket(ticket.id, { status: "in_progress" });
-    const location = await captureCurrentLocation();
-    await startWorkTimer(ticket.id, user!.id, location);
+    setActionError("");
+    try {
+      await editTicket(ticket.id, { status: "in_progress" });
+      const location = await captureCurrentLocation();
+      await startWorkTimer(ticket.id, user!.id, location);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo aceptar el trabajo. Intenta de nuevo.");
+    }
   };
-  const handleReject   = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
-  const handleReassign = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
+  const handleReject = async () => {
+    setActionError("");
+    try {
+      await editTicket(ticket.id, { status: "pending", technician_id: "" });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo rechazar el ticket. Intenta de nuevo.");
+    }
+  };
+  const handleReassign = async () => {
+    setActionError("");
+    try {
+      await editTicket(ticket.id, { status: "pending", technician_id: "" });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "No se pudo reasignar el ticket. Intenta de nuevo.");
+    }
+  };
 
   return (
     <div className="stack-lg">
@@ -323,6 +348,16 @@ export default function TicketDetailPage() {
       </article>
 
       {/* ══ PANEL DE ACCIONES ══════════════════════════════════════ */}
+
+      {actionError && (
+        <div style={{
+          background: "#fef2f2", border: "1px solid #fca5a5",
+          borderRadius: "var(--r-md)", padding: "0.85rem 1.1rem",
+          color: "#b91c1c", fontSize: "0.84rem",
+        }}>
+          {actionError}
+        </div>
+      )}
 
       {/* Admin: ticket nuevo → iniciar trabajo */}
       {user?.role === "admin" && ticket.status === "pending" && (

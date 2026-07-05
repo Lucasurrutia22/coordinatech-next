@@ -227,23 +227,32 @@ export async function createTicket(ticket: Ticket): Promise<void> {
 }
 
 export async function updateTicket(id: string, payload: Partial<Ticket>): Promise<void> {
-  // Critico: actualizar almacenamiento local primero.
-  // Esto es NON-NEGOTIABLE para cambios optimistas
-  const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
-  
-  // Verificar que el ticket existe
-  const ticketIndex = current.findIndex(item => item.id === id);
-  if (ticketIndex === -1) {
-    throw new Error(`Ticket ${id} not found in local storage`);
+  // Esta función corre tanto en el navegador (fallback de editTicketHandler)
+  // como en el servidor (la API route PATCH /api/tickets/[id]). El almacenamiento
+  // local (IndexedDB) solo existe en el navegador — loadLocal() lo detecta y
+  // devuelve demoTickets como si fuera el real, así que en el servidor CUALQUIER
+  // ticket real (no-demo) "no se encontraba" y la función lanzaba error antes de
+  // siquiera intentar escribir en Supabase, bloqueando todo cambio de estado que
+  // pasara por la API (iniciar, aceptar, rechazar, reasignar, no completado).
+  if (typeof window !== "undefined") {
+    // Critico: actualizar almacenamiento local primero.
+    // Esto es NON-NEGOTIABLE para cambios optimistas
+    const current = await loadLocal<Ticket[]>(TICKETS_KEY, demoTickets);
+
+    // Verificar que el ticket existe
+    const ticketIndex = current.findIndex(item => item.id === id);
+    if (ticketIndex === -1) {
+      throw new Error(`Ticket ${id} not found in local storage`);
+    }
+
+    // Actualizar el ticket
+    const updated = current.map((item) =>
+      item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
+    );
+
+    // Guardar inmediatamente en almacenamiento local.
+    await saveLocal(TICKETS_KEY, updated);
   }
-  
-  // Actualizar el ticket
-  const updated = current.map((item) =>
-    item.id === id ? enrichTicketWithSLA({ ...item, ...payload }) : item,
-  );
-  
-  // Guardar inmediatamente en almacenamiento local.
-  await saveLocal(TICKETS_KEY, updated);
 
   // LUEGO intentar Supabase (sin bloquear)
   if (hasSupabaseEnv && supabase) {

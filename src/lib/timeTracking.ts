@@ -74,7 +74,10 @@ export async function startWorkTimer(
     if (logError) throw logError;
   } catch (err) {
     console.error('Error in startWorkTimer:', err);
-    // No lanzar error, permitir que continúe en modo offline
+    // Relanzar: WorkTimer.tsx ya envuelve esto en try/catch y avisa al técnico
+    // (alert). Tragar el error aquí dejaba el botón "Iniciar" pareciendo exitoso
+    // aunque el cronómetro nunca se hubiera registrado.
+    throw err;
   }
 }
 
@@ -123,7 +126,7 @@ export async function pauseWorkTimer(
     if (logError) throw logError;
   } catch (err) {
     console.error('Error in pauseWorkTimer:', err);
-    // No lanzar error
+    throw err;
   }
 }
 
@@ -191,7 +194,7 @@ export async function resumeWorkTimer(
     if (logError) throw logError;
   } catch (err) {
     console.error('Error in resumeWorkTimer:', err);
-    // No lanzar error
+    throw err;
   }
 }
 
@@ -252,7 +255,11 @@ export async function completeWorkTimer(
     if (logError) throw logError;
   } catch (err) {
     console.error('Error in completeWorkTimer:', err);
-    // No lanzar error
+    // A diferencia de start/pause/resume, aquí NO se relanza a propósito: quien
+    // llama ya marcó el ticket como completado/no-completado vía editTicket()
+    // (la acción principal, que ya tuvo éxito) — esta función solo cierra breaks
+    // abiertos y registra el evento de auditoría final. Relanzar haría ver como
+    // "fallo" una finalización que en realidad sí se guardó.
   }
 }
 
