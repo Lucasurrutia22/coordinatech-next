@@ -330,13 +330,22 @@ export async function createIncompleteReport(report: IncompleteReport): Promise<
 
 export async function createTechnician(technician: Technician): Promise<void> {
   if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
     try {
-      const { error } = await supabase.from("technicians").insert([technician]);
-      if (!error) {
-        return;
+      response = await supabase.from("technicians").insert([technician]);
+    } catch (networkErr) {
+      console.warn("Supabase createTechnician inalcanzable, usando almacenamiento local:", networkErr);
+    }
+
+    if (response) {
+      if (!response.error) return;
+      // Supabase respondió: es un rechazo real (ej. email duplicado por el constraint
+      // unique de la tabla), no una falla de red — no debe guardarse en local como si
+      // hubiera funcionado, o el técnico "creado" desaparecería en el próximo refresh.
+      if (response.error.code === "23505") {
+        throw new Error("Ya existe un técnico con este correo electrónico.");
       }
-    } catch (err) {
-      console.warn("Supabase createTechnician falló:", err);
+      throw new Error(response.error.message || "No se pudo crear el técnico.");
     }
   }
 
@@ -345,25 +354,36 @@ export async function createTechnician(technician: Technician): Promise<void> {
 }
 
 export async function updateTechnician(id: string, payload: Partial<Technician>): Promise<void> {
-  // Igual que updateTicket: el almacenamiento local se actualiza primero y siempre.
-  const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
-  const updated = current.map((item) => (item.id === id ? { ...item, ...payload } : item));
-  await saveLocal(TECHS_KEY, updated);
-
   if (hasSupabaseEnv && supabase) {
+    let response: { error: { code?: string; message: string } | null } | undefined;
     try {
       const validFields: (keyof Technician)[] = ["name", "email", "phone", "password", "active"];
       const filteredPayload = Object.fromEntries(
         Object.entries(payload).filter(([key]) => validFields.includes(key as keyof Technician)),
       );
+      response = await supabase.from("technicians").update(filteredPayload).eq("id", id);
+    } catch (networkErr) {
+      console.warn(`updateTechnician: Supabase inalcanzable para ${id}, usando almacenamiento local:`, networkErr);
+    }
 
-      const { error } = await supabase.from("technicians").update(filteredPayload).eq("id", id);
-      if (error) {
-        console.warn(`updateTechnician: Supabase falló para ${id}:`, error);
-        // No relanzar: el almacenamiento local ya está actualizado.
+    if (response) {
+      if (!response.error) {
+        const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
+        await saveLocal(TECHS_KEY, current.map((item) => (item.id === id ? { ...item, ...payload } : item)));
+        return;
       }
-    } catch (err) {
-      console.warn(`updateTechnician: excepción de Supabase para ${id}:`, err);
+      // Rechazo real de Supabase (ej. email duplicado) — no lo escondemos guardando
+      // local igual, porque el próximo refresh traería de vuelta el dato viejo y el
+      // admin nunca se enteraría de que el cambio no se aplicó.
+      if (response.error.code === "23505") {
+        throw new Error("Ya existe un técnico con este correo electrónico.");
+      }
+      throw new Error(response.error.message || "No se pudo actualizar el técnico.");
     }
   }
+
+  // Solo llega aquí si Supabase no está configurado o es inalcanzable (offline).
+  const current = await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
+  const updated = current.map((item) => (item.id === id ? { ...item, ...payload } : item));
+  await saveLocal(TECHS_KEY, updated);
 }

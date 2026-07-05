@@ -26,11 +26,13 @@ function generateTempPassword(): string {
 function TechnicianModal({
   mode,
   initial,
+  existingTechnicians,
   onClose,
   onSubmit,
 }: {
   mode: "create" | "edit";
   initial?: Technician;
+  existingTechnicians: Technician[];
   onClose: () => void;
   onSubmit: (payload: { name: string; email: string; phone: string; password?: string }) => Promise<void>;
 }) {
@@ -41,6 +43,8 @@ function TechnicianModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -61,17 +65,94 @@ function TechnicianModal({
       return;
     }
 
+    // Validar nombre/correo duplicado contra los técnicos ya registrados
+    // (excluyendo al propio técnico cuando se está editando).
+    const normalizedName = name.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const others = existingTechnicians.filter((tech) => tech.id !== initial?.id);
+    const fieldErrors: Record<string, string> = {};
+    if (others.some((tech) => tech.name.trim().toLowerCase() === normalizedName)) {
+      fieldErrors.name = "Ya existe un técnico con este nombre.";
+    }
+    if (others.some((tech) => tech.email.trim().toLowerCase() === normalizedEmail)) {
+      fieldErrors.email = "Ya existe un técnico con este correo.";
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      return;
+    }
+
     setErrors({});
     setSubmitting(true);
     try {
       await onSubmit({ name, email, phone, password: password || undefined });
-      onClose();
+      if (mode === "create") {
+        // Mostrar las credenciales antes de cerrar: es la única oportunidad que
+        // tiene el admin de copiar la contraseña temporal para dársela al técnico.
+        setCreated({ email, password });
+      } else {
+        onClose();
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo guardar. Intenta de nuevo.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  const copyCredentials = async () => {
+    if (!created) return;
+    try {
+      await navigator.clipboard.writeText(`Correo: ${created.email}\nContraseña temporal: ${created.password}`);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (created) {
+    return (
+      <div
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 100, padding: "1rem",
+        }}
+      >
+        <div
+          style={{
+            background: "var(--surface)", borderRadius: "var(--r-lg)",
+            padding: "1.5rem", width: "100%", maxWidth: 420,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            display: "flex", flexDirection: "column", gap: "1rem",
+          }}
+        >
+          <span style={{ fontWeight: 700, fontSize: "1rem" }}>Técnico creado</span>
+          <p className="muted" style={{ fontSize: "0.82rem", margin: 0 }}>
+            Comparte estas credenciales con el técnico. La contraseña no se volverá a mostrar.
+          </p>
+          <div style={{ display: "grid", gap: "0.5rem", padding: "0.75rem 1rem", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", background: "var(--surface-alt, var(--surface))" }}>
+            <div>
+              <p className="muted" style={{ margin: 0, fontSize: "0.72rem" }}>Correo</p>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: "0.88rem" }}>{created.email}</p>
+            </div>
+            <div>
+              <p className="muted" style={{ margin: 0, fontSize: "0.72rem" }}>Contraseña temporal</p>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: "0.88rem", fontFamily: "monospace" }}>{created.password}</p>
+            </div>
+          </div>
+          <div className="row-end">
+            <button type="button" className="outline-btn" onClick={copyCredentials}>
+              {copied ? "Copiado ✓" : "Copiar credenciales"}
+            </button>
+            <button type="button" className="primary-btn" onClick={onClose}>
+              Listo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -349,6 +430,7 @@ export default function TechniciansPage() {
         <TechnicianModal
           mode={modal.mode}
           initial={modal.mode === "edit" ? modal.technician : undefined}
+          existingTechnicians={technicians}
           onClose={() => setModal(null)}
           onSubmit={async (payload) => {
             if (modal.mode === "create") {
