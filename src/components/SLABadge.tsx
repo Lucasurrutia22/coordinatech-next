@@ -8,7 +8,7 @@ export function SLABadge({ ticket }: { ticket: Ticket }) {
   }
 
   const statusConfig = {
-    healthy: {
+    ok: {
       label: "SLA en orden",
       className: "status-completed",
       color: "#16a34a",
@@ -19,9 +19,19 @@ export function SLABadge({ ticket }: { ticket: Ticket }) {
       color: "#d97706",
     },
     critical: {
+      label: "SLA crítico",
+      className: "status-pending",
+      color: "#dc2626",
+    },
+    overdue: {
       label: "SLA vencido",
       className: "status-pending",
       color: "#dc2626",
+    },
+    completed: {
+      label: "Completado dentro de SLA",
+      className: "status-completed",
+      color: "#16a34a",
     },
   };
 

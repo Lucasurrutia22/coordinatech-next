@@ -1,10 +1,11 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { ArrowLeft, CheckCircle2, Loader, Send, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useAppContext } from "@/context/AppContext";
+import { completeWorkTimer } from "@/lib/timeTracking";
 
 const ZOHO_BASE_URL =
   "https://forms.zohopublic.com/lucasurrutiaagm1/form/FormulariodeOrdendeSoporteenTerreno/formperma/kMm5kCLYqRM8FWN2jhRU-paPESv0711Ff59ftqHtwok";
@@ -53,20 +54,26 @@ export default function OrdenSoportePage() {
   const [zohoUrl, setZohoUrl] = useState<string>("");
   const zohoWindowRef = useRef<Window | null>(null);
 
-  // Monitorear si la ventana de Zoho se cerró para redirigir automáticamente
-  useEffect(() => {
-    if (!submitted || !zohoWindowRef.current) return;
-
+  // Monitorea si la ventana de Zoho se cerró, para redirigir automáticamente.
+  // Se arma recién cuando el usuario abre la ventana (ver openZohoWindow), no antes.
+  const watchZohoWindow = () => {
     const checkZohoWindow = setInterval(() => {
       if (zohoWindowRef.current && zohoWindowRef.current.closed) {
-        // La ventana de Zoho se cerró, redirigir a /tickets
         clearInterval(checkZohoWindow);
         router.replace("/tickets");
       }
-    }, 500); // Verificar cada 500ms
+    }, 500);
+  };
 
-    return () => clearInterval(checkZohoWindow);
-  }, [submitted, router]);
+  const openZohoWindow = () => {
+    if (zohoWindowRef.current && !zohoWindowRef.current.closed) {
+      zohoWindowRef.current.focus();
+      return;
+    }
+    if (!zohoUrl) return;
+    zohoWindowRef.current = window.open(zohoUrl, "zoho_form", "width=1024,height=800");
+    watchZohoWindow();
+  };
 
   if (!ticket) {
     return <section className="panel">Ticket no encontrado.</section>;
@@ -120,33 +127,27 @@ export default function OrdenSoportePage() {
       // Esto hace que desaparezca de "Mis Tickets" del técnico
       await editTicket(ticket.id, { status: "completed" });
 
-      // PASO 3: Mostrar confirmación
-      setSubmitted(true);
+      // PASO 2.5: Cerrar cronómetro (cierra pausas abiertas, calcula duración,
+      // registra evento "completed" para el historial de auditoría).
+      await completeWorkTimer(ticket.id, user.id, "Completado con orden de soporte", "work_order");
 
-      // PASO 4: Después de 1.5s, abrir Zoho en NUEVA VENTANA (sin cerrar CoordinaTech)
-      setTimeout(() => {
-        // Construir URL de Zoho con campos pre-rellenados
-        const clientName = (formData.get("cliente_nombre") as string) || "";
-        const clientLocal = (formData.get("cliente_local") as string) || "";
-        
-        const zohoUrlWithPrefill = buildZohoUrlWithPrefill(
-          user.name,
-          user.email,
-          ticket.id,
-          ticket.address,
-          clientName,
-          clientLocal
-        );
-        
-        // Guardar URL para usar en el botón "Ir a formulario Zoho"
-        setZohoUrl(zohoUrlWithPrefill);
-        
-        // Abrir Zoho en NUEVA VENTANA (no bloquea CoordinaTech)
-        const zohoWindow = window.open(zohoUrlWithPrefill, "zoho_form", "width=1024,height=800");
-        zohoWindowRef.current = zohoWindow;
-        
-        // CoordinaTech permanece abierta, el usuario puede cerrar la ventana de Zoho cuando termine
-      }, 1500);
+      // PASO 3: Construir la URL de Zoho pre-rellenada y mostrar confirmación.
+      // La ventana NO se abre automáticamente: el usuario la abre con un clic (botón de abajo),
+      // porque un window.open() diferido con setTimeout es bloqueado por navegadores móviles.
+      const clientName = (formData.get("cliente_nombre") as string) || "";
+      const clientLocal = (formData.get("cliente_local") as string) || "";
+
+      const zohoUrlWithPrefill = buildZohoUrlWithPrefill(
+        user.name,
+        user.email,
+        ticket.id,
+        ticket.address,
+        clientName,
+        clientLocal
+      );
+
+      setZohoUrl(zohoUrlWithPrefill);
+      setSubmitted(true);
     } catch (error) {
       console.error("Error al completar orden:", error);
       setErrorMsg(
@@ -166,7 +167,7 @@ export default function OrdenSoportePage() {
             ✓ Tu orden de soporte se guardó correctamente en CoordinaTech
             <br />
             <br />
-            📱 Se abrió el <strong>formulario Zoho en una ventana nueva</strong> donde deberás completar:
+            📱 Presiona el botón de abajo para abrir el <strong>formulario Zoho</strong> y completar:
             <br />
             • Detalles técnicos de la reparación
             <br />
@@ -177,23 +178,11 @@ export default function OrdenSoportePage() {
             <br />
             <strong>⏱️ Al cerrar la ventana de Zoho, volverás automáticamente a tu bandeja de tickets</strong>
           </p>
-          
+
           <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--surface-2)", borderRadius: "var(--r-md)", border: "1px solid var(--line)" }}>
-            <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0 0 0.75rem" }}>
-              <strong>✨ Tip:</strong> Si no ves la ventana de Zoho, revisa si fue bloqueada por el navegador (busca un icono de bloqueo en la barra de direcciones)
-            </p>
             <button
               type="button"
-              onClick={() => {
-                // Si la ventana está abierta, enfocarla
-                if (zohoWindowRef.current && !zohoWindowRef.current.closed) {
-                  zohoWindowRef.current.focus();
-                } else if (zohoUrl) {
-                  // Si la ventana está cerrada o no existe, abrir una nueva
-                  const newZohoWindow = window.open(zohoUrl, "zoho_form", "width=1024,height=800");
-                  zohoWindowRef.current = newZohoWindow;
-                }
-              }}
+              onClick={openZohoWindow}
               style={{
                 padding: "0.65rem 1.25rem",
                 background: "var(--brand)",

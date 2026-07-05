@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Ticket } from "@/types/domain";
+import { Ticket, TicketPriority, TicketType } from "@/types/domain";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
 import { SLAIndicator } from "@/components/SLAIndicator";
 import { useAppContext } from "@/context/AppContext";
 import { useSLAAlerts } from "@/hooks/useSLAAlerts";
 import { TICKET_TYPE_META } from "@/types/domain";
+
+const TYPE_FILTERS: { value: "all" | TicketType; label: string }[] = [
+  { value: "all", label: "Todos los tipos" },
+  { value: "support", label: "ST" },
+  { value: "installation", label: "INS" },
+  { value: "removal", label: "RT" },
+];
+
+const PRIORITY_FILTERS: { value: "all" | TicketPriority; label: string }[] = [
+  { value: "all", label: "Toda prioridad" },
+  { value: "high", label: "Alta" },
+  { value: "medium", label: "Media" },
+  { value: "low", label: "Baja" },
+];
 
 export default function TicketsPage() {
   const { getVisibleTickets, getAvailableTickets, getCompletedTickets, technicians, user, editTicket, tickets } = useAppContext();
@@ -20,6 +34,36 @@ export default function TicketsPage() {
   const completedTickets = getCompletedTickets();
   const [accepting, setAccepting] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | TicketType>("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | TicketPriority>("all");
+
+  const { filteredVisible, filteredAvailable, filteredCompleted } = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    const matches = (ticket: Ticket) => {
+      const matchesQuery =
+        !q ||
+        ticket.title.toLowerCase().includes(q) ||
+        ticket.address.toLowerCase().includes(q) ||
+        ticket.id.toLowerCase().includes(q);
+      const matchesType = typeFilter === "all" || ticket.ticket_type === typeFilter;
+      const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
+      return matchesQuery && matchesType && matchesPriority;
+    };
+
+    return {
+      filteredVisible: visibleTickets.filter(matches),
+      filteredAvailable: availableTickets.filter(matches),
+      filteredCompleted: completedTickets.filter(matches),
+    };
+  }, [visibleTickets, availableTickets, completedTickets, query, typeFilter, priorityFilter]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setTypeFilter("all");
+    setPriorityFilter("all");
+  };
+  const hasActiveFilters = query !== "" || typeFilter !== "all" || priorityFilter !== "all";
 
   const summaryText =
     user?.role === "admin"
@@ -30,7 +74,7 @@ export default function TicketsPage() {
     if (!user) return;
     setAccepting(ticketId);
     try {
-      await editTicket(ticketId, { technician_id: user.id });
+      await editTicket(ticketId, { technician_id: user.id, status: "assigned" });
     } finally {
       setAccepting(null);
     }
@@ -118,13 +162,7 @@ export default function TicketsPage() {
                   <td className="table-hide-xs"><PriorityPill priority={ticket.priority} /></td>
                   <td className="text-xs">
                     {ticket.created_at ? (
-                      <SLAIndicator
-                        ticketId={ticket.id}
-                        createdAt={ticket.created_at}
-                        priority={ticket.priority}
-                        status={ticket.status}
-                        compact={true}
-                      />
+                      <SLAIndicator ticket={ticket} compact={true} />
                     ) : (
                       <span className="text-xs text-[#787774]">Sin fecha</span>
                     )}
@@ -219,15 +257,55 @@ export default function TicketsPage() {
         )}
       </div>
 
-      <TicketTable 
-        tickets={visibleTickets} 
+      <div className="surface-card p-4 flex flex-wrap items-center gap-3 fade-in-up">
+        <div style={{ position: "relative", flex: "1 1 240px" }}>
+          <Search size={14} style={{ position: "absolute", left: "0.65rem", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por título, dirección o ID..."
+            style={{ width: "100%", boxSizing: "border-box", padding: "0.5rem 2rem", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", fontSize: "0.84rem", background: "var(--surface)", color: "var(--ink)" }}
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery("")} style={{ position: "absolute", right: "0.5rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 0 }}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as "all" | TicketType)}
+          style={{ padding: "0.5rem 0.75rem", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", fontSize: "0.84rem", background: "var(--surface)", color: "var(--ink)" }}
+        >
+          {TYPE_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value as "all" | TicketPriority)}
+          style={{ padding: "0.5rem 0.75rem", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", fontSize: "0.84rem", background: "var(--surface)", color: "var(--ink)" }}
+        >
+          {PRIORITY_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button type="button" className="outline-btn" style={{ fontSize: "0.8rem" }} onClick={clearFilters}>
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      <TicketTable
+        tickets={filteredVisible}
         title={user?.role === "admin" ? "Todos los Tickets" : "Mis Tickets Asignados"}
         subtitle="Listado principal de trabajo"
       />
 
       {user?.role !== "admin" && (
         <TicketTable
-          tickets={availableTickets}
+          tickets={filteredAvailable}
           title="Tickets Disponibles para Aceptar"
           subtitle="Toma de tickets no asignados"
           isAvailable={true}
@@ -236,7 +314,7 @@ export default function TicketsPage() {
 
       {completedTickets.length > 0 && (
         <TicketTable
-          tickets={completedTickets}
+          tickets={filteredCompleted}
           title={user?.role === "admin" ? "Historial de Completados" : "Mis Tickets Completados"}
           subtitle={`${completedTickets.length} ticket${completedTickets.length !== 1 ? "s" : ""} completado${completedTickets.length !== 1 ? "s" : ""}`}
         />

@@ -41,11 +41,11 @@ export default function AdminMetricsSLAPage() {
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="surface-card p-5">
           <p className="eyebrow">Reglas de servicio</p>
-          <h3 className="mt-2 text-base font-semibold text-[#111111]">Ventanas por prioridad</h3>
+          <h3 className="mt-2 text-base font-semibold text-[#111111]">Ventanas por tipo de solicitud</h3>
           <div className="mt-3 grid gap-2 text-sm text-[#2f3437]">
-            <p><strong>Alta:</strong> 4 horas</p>
-            <p><strong>Media:</strong> 24 horas</p>
-            <p><strong>Baja:</strong> 48 horas</p>
+            <p><strong>Soporte Tecnico (ST):</strong> 2 horas</p>
+            <p><strong>Instalacion (INS):</strong> 5 horas</p>
+            <p><strong>Retiro (RT):</strong> 3 horas</p>
           </div>
         </div>
 
@@ -53,9 +53,9 @@ export default function AdminMetricsSLAPage() {
           <p className="eyebrow">Umbrales de alerta</p>
           <h3 className="mt-2 text-base font-semibold text-[#111111]">Interpretacion operativa</h3>
           <div className="mt-3 grid gap-2 text-sm text-[#2f3437]">
-            <p><strong>Critico:</strong> menos de 15% de tiempo restante.</p>
-            <p><strong>Alerta:</strong> menos de 30% de tiempo restante.</p>
-            <p><strong>Estable:</strong> 30% o mas de tiempo restante.</p>
+            <p><strong>Critico:</strong> menos de 25% de tiempo restante.</p>
+            <p><strong>Alerta:</strong> menos de 50% de tiempo restante.</p>
+            <p><strong>Estable:</strong> 50% o mas de tiempo restante.</p>
           </div>
         </div>
       </section>

@@ -8,6 +8,8 @@ export interface WorkTimeLog {
   timestamp: string;
   duration_ms: number;
   notes?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface WorkBreak {
@@ -34,10 +36,11 @@ export interface WorkTimeSummary {
  */
 export async function startWorkTimer(
   ticketId: string,
-  technicianId: string
+  technicianId: string,
+  location?: { latitude: number; longitude: number } | null
 ) {
   const { hasSupabaseEnv } = await import('./supabase');
-  
+
   // Si Supabase no está configurado, solo retornar sin error
   if (!hasSupabaseEnv) {
     console.log('Work timer started (offline mode):', ticketId);
@@ -55,7 +58,7 @@ export async function startWorkTimer(
 
     if (ticketError) throw ticketError;
 
-    // Registrar evento
+    // Registrar evento (con ubicación GPS si el técnico dio permiso)
     const { error: logError } = await supabase
       .from('work_time_logs')
       .insert([{
@@ -64,6 +67,8 @@ export async function startWorkTimer(
         event_type: 'started',
         timestamp: now,
         notes: 'Trabajo iniciado por técnico',
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
       }]);
 
     if (logError) throw logError;
@@ -222,39 +227,16 @@ export async function completeWorkTimer(
       await resumeWorkTimer(ticketId, technicianId);
     }
 
-    // Determinar estado final basado en tipo de finalización
-    const finalStatus = completionType === 'not_completed' ? 'pending' : 'completed';
-    
-    // Actualizar ticket
+    // Registrar fin de trabajo (dispara el trigger de cálculo de duración en BD).
+    // El status/technician_id del ticket se actualizan por separado vía editTicket
+    // (pasa por la API con validación de transición) desde quien llama a esta función —
+    // no se duplican aquí para no pisar esa validación.
     const { error: ticketError } = await supabase
       .from('tickets')
-      .update({
-        work_ended_at: endTime,
-        status: finalStatus,
-        completion_type: completionType,
-        // Si es no completado, limpiar asignación para que esté disponible para reasignar
-        ...(completionType === 'not_completed' && { technician_id: '' }),
-      })
+      .update({ work_ended_at: endTime, completion_type: completionType })
       .eq('id', ticketId);
 
     if (ticketError) throw ticketError;
-
-    // Si es orden de soporte, crear entrada correspondiente
-    if (completionType === 'work_order') {
-      const { error: woError } = await supabase
-        .from('work_orders')
-        .insert([{
-          ticket_id: ticketId,
-          technician_id: technicianId,
-          created_at: endTime,
-          status: 'pending',
-          description: notes || 'Orden de soporte generada automáticamente',
-        }]);
-
-      if (woError && woError.code !== 'PGRST110') { // PGRST110 = tabla no existe
-        console.warn('No se pudo crear orden de soporte:', woError);
-      }
-    }
 
     // Registrar evento
     const { error: logError } = await supabase

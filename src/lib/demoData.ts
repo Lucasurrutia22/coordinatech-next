@@ -62,7 +62,7 @@ export const demoTickets: Ticket[] = [
     technician_id: "TECH-002",
     created_at: new Date().toISOString(),
     sla_deadline: new Date(Date.now() + 28800000).toISOString(),
-    sla_status: "healthy",
+    sla_status: "ok",
   },
   {
     id: "ST-002",
@@ -90,7 +90,7 @@ export const demoTickets: Ticket[] = [
     technician_id: "TECH-004",
     created_at: new Date().toISOString(),
     sla_deadline: new Date(Date.now() + 86400000).toISOString(),
-    sla_status: "healthy",
+    sla_status: "ok",
   },
   {
     id: "INS-002",
@@ -104,7 +104,7 @@ export const demoTickets: Ticket[] = [
     technician_id: "TECH-001",
     created_at: new Date(Date.now() - 86400000).toISOString(),
     sla_deadline: new Date(Date.now() - 3600000).toISOString(),
-    sla_status: "healthy",
+    sla_status: "ok",
   },
   {
     id: "ST-003",

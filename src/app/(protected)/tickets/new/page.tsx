@@ -143,6 +143,9 @@ export default function NewTicketPage() {
             <option value="medium">Media</option>
             <option value="high">Alta</option>
           </select>
+          <span className="muted" style={{ fontSize: "0.72rem" }}>
+            La prioridad no cambia el plazo de SLA (ese depende del tipo de solicitud) — indica orden de atención dentro del equipo.
+          </span>
         </label>
         <label>
           Tecnico (Opcional)

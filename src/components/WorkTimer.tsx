@@ -11,6 +11,7 @@ import {
   getLiveWorkTimer,
 } from '@/lib/timeTracking';
 import { supabase } from '@/lib/supabase';
+import { captureCurrentLocation } from '@/lib/geolocation';
 
 // Razones predefinidas de pausa
 const PREDEFINED_BREAK_REASONS = [
@@ -122,7 +123,10 @@ export function WorkTimer({
   const handleStart = async () => {
     try {
       setLoading(true);
-      await startWorkTimer(ticketId, technicianId);
+      // Best-effort: si el técnico no otorga permiso de ubicación, el inicio
+      // del trabajo continúa igual (GPS es evidencia opcional, no bloqueante).
+      const location = await captureCurrentLocation();
+      await startWorkTimer(ticketId, technicianId, location);
       setState('running');
       setElapsedMs(0);
       onWorkStarted?.();
@@ -202,7 +206,10 @@ export function WorkTimer({
           </>
         )}
         <div className="flex gap-2 justify-center">
-          {state === 'idle' && (
+          {state === 'idle' && !technicianId && (
+            <p className="text-sm text-gray-600">Asigna un técnico antes de iniciar el cronómetro.</p>
+          )}
+          {state === 'idle' && technicianId && (
             <button
               onClick={handleStart}
               disabled={loading}

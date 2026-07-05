@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { calculateSLA } from '@/lib/slaCalculations';
+import { calculateSLAMetrics } from '@/lib/sla';
+import type { Ticket } from '@/types/domain';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -22,7 +23,7 @@ interface SLAMetric {
   created_at: string;
   technician_id?: string;
   sla_percent: number;
-  sla_status: 'critical' | 'warning' | 'ok' | 'completed';
+  sla_status: 'critical' | 'warning' | 'ok' | 'overdue' | 'completed';
 }
 
 interface TicketData {
@@ -33,6 +34,8 @@ interface TicketData {
   status: string;
   created_at: string;
   technician_id?: string;
+  ticket_type?: string;
+  sla_deadline?: string;
 }
 
 interface SLAStats {
@@ -156,7 +159,10 @@ export function SLAMetricsPanel() {
         .map((ticket: TicketData) => {
         const parsedCreatedAt = new Date(ticket.created_at);
         const validCreatedAt = Number.isNaN(parsedCreatedAt.getTime()) ? new Date() : parsedCreatedAt;
-        const sla = calculateSLA(validCreatedAt, ticket.priority, ticket.status);
+        const sla = calculateSLAMetrics({
+          ...ticket,
+          created_at: validCreatedAt.toISOString(),
+        } as unknown as Ticket);
         return {
           id: ticket.id,
           description: ticket.description,
@@ -166,13 +172,14 @@ export function SLAMetricsPanel() {
           created_at: validCreatedAt.toISOString(),
           technician_id: ticket.technician_id,
           sla_percent: sla.percentRemaining,
-          sla_status: sla.status,
+          sla_status: sla.level,
         };
       });
 
       setMetrics(slaMetrics);
 
-      const criticalCount = slaMetrics.filter((item) => item.sla_status === 'critical').length;
+      // "critical" agrupa crítico + vencido para este resumen ejecutivo (ambos requieren atención inmediata).
+      const criticalCount = slaMetrics.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').length;
       const warningCount = slaMetrics.filter((item) => item.sla_status === 'warning').length;
       const okCount = slaMetrics.filter((item) => item.sla_status === 'ok').length;
       const completedCount = slaMetrics.filter((item) => item.sla_status === 'completed').length;
@@ -198,7 +205,7 @@ export function SLAMetricsPanel() {
   }
 
   const topCritical = useMemo(
-    () => metrics.filter((item) => item.sla_status === 'critical').slice(0, 6),
+    () => metrics.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').slice(0, 6),
     [metrics]
   );
 
@@ -208,7 +215,7 @@ export function SLAMetricsPanel() {
     return priorities.map((priority) => {
       const group = metrics.filter((item) => item.priority === priority);
       const avg = group.length > 0 ? group.reduce((sum, item) => sum + item.sla_percent, 0) / group.length : 0;
-      const critical = group.filter((item) => item.sla_status === 'critical').length;
+      const critical = group.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').length;
       const label = priority === 'high' ? 'Alta' : priority === 'medium' ? 'Media' : 'Baja';
       return { priority, label, avg, total: group.length, critical };
     });
@@ -235,7 +242,7 @@ export function SLAMetricsPanel() {
         dayItems.length > 0
           ? dayItems.reduce((sum, item) => sum + item.sla_percent, 0) / dayItems.length
           : 0;
-      const critical = dayItems.filter((item) => item.sla_status === 'critical').length;
+      const critical = dayItems.filter((item) => item.sla_status === 'critical' || item.sla_status === 'overdue').length;
 
       buckets.push({
         day: getDayLabel(day),
@@ -260,7 +267,7 @@ export function SLAMetricsPanel() {
 
       row.sum += item.sla_percent;
       row.total += 1;
-      if (item.sla_status === 'critical') row.critical += 1;
+      if (item.sla_status === 'critical' || item.sla_status === 'overdue') row.critical += 1;
     });
 
     const points: TechnicianPoint[] = [];

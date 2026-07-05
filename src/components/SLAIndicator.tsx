@@ -1,36 +1,25 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
-import { calculateSLA, type SLACalculation } from '@/lib/slaCalculations';
-import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { calculateSLAMetrics, type SLAMetrics } from '@/lib/sla';
+import { Ticket } from '@/types/domain';
+import { AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 interface SLAIndicatorProps {
-  ticketId: string;
-  createdAt: string;
-  priority: 'low' | 'medium' | 'high';
-  status: string;
+  ticket: Ticket;
   compact?: boolean;
 }
 
-export function SLAIndicator({
-  ticketId,
-  createdAt,
-  priority,
-  status,
-  compact = false,
-}: SLAIndicatorProps) {
-  const [sla, setSla] = useState<SLACalculation | null>(null);
+export function SLAIndicator({ ticket, compact = false }: SLAIndicatorProps) {
+  const [sla, setSla] = useState<SLAMetrics | null>(null);
 
   useEffect(() => {
-    const updateSla = () => {
-      const slaData = calculateSLA(new Date(createdAt), priority, status);
-      setSla(slaData);
-    };
-
+    const updateSla = () => setSla(calculateSLAMetrics(ticket));
     updateSla();
     const interval = setInterval(updateSla, 1000); // Actualizar cada segundo
     return () => clearInterval(interval);
-  }, [createdAt, priority, status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticket.id, ticket.created_at, ticket.ticket_type, ticket.status, ticket.sla_deadline]);
 
   if (!sla) return null;
 
@@ -56,6 +45,13 @@ export function SLAIndicator({
       icon: 'text-blue-600',
       progress: 'bg-blue-500',
     },
+    overdue: {
+      bg: 'bg-red-100',
+      border: 'border-red-400',
+      badge: 'bg-red-200 text-red-900',
+      icon: 'text-red-700',
+      progress: 'bg-red-700',
+    },
     completed: {
       bg: 'bg-green-50',
       border: 'border-green-300',
@@ -65,12 +61,13 @@ export function SLAIndicator({
     },
   };
 
-  const colorScheme = colors[sla.status];
+  const colorScheme = colors[sla.level];
 
   const statusIcons = {
     critical: <AlertCircle className={`w-5 h-5 ${colorScheme.icon}`} />,
     warning: <AlertCircle className={`w-5 h-5 ${colorScheme.icon}`} />,
     ok: <Clock className={`w-5 h-5 ${colorScheme.icon}`} />,
+    overdue: <XCircle className={`w-5 h-5 ${colorScheme.icon}`} />,
     completed: <CheckCircle className={`w-5 h-5 ${colorScheme.icon}`} />,
   };
 
@@ -78,16 +75,17 @@ export function SLAIndicator({
     critical: '🔴 Crítico',
     warning: '⚠️ Alerta',
     ok: '✓ En Tiempo',
+    overdue: '⛔ Vencido',
     completed: '✅ Completado',
   };
 
   if (compact) {
     return (
       <div className={`px-3 py-2 rounded-lg border ${colorScheme.border} ${colorScheme.bg} flex items-center gap-2`}>
-        <div className="flex-shrink-0">{statusIcons[sla.status]}</div>
+        <div className="flex-shrink-0">{statusIcons[sla.level]}</div>
         <div className="flex-1 min-w-0">
           <p className={`text-xs font-medium ${colorScheme.badge.split(' ')[1]}`}>
-            {statusLabels[sla.status]}
+            {statusLabels[sla.level]}
           </p>
           <p className={`text-xs font-mono ${colorScheme.badge.split(' ')[1]}`}>
             {sla.hoursRemaining.toFixed(1)}h / {sla.percentRemaining.toFixed(0)}%
@@ -103,9 +101,9 @@ export function SLAIndicator({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {statusIcons[sla.status]}
+          {statusIcons[sla.level]}
           <span className={`font-bold ${colorScheme.badge.split(' ')[1]}`}>
-            {statusLabels[sla.status]}
+            {statusLabels[sla.level]}
           </span>
         </div>
         <span className={`text-2xl font-bold ${colorScheme.badge.split(' ')[1]}`}>
@@ -131,12 +129,12 @@ export function SLAIndicator({
         </div>
         <div>
           <p className="text-gray-600">Ventana SLA</p>
-          <p className="font-bold text-gray-900">{sla.timeWindow}h</p>
+          <p className="font-bold text-gray-900">{(sla.timeWindowMinutes / 60).toFixed(1)}h</p>
         </div>
         <div>
           <p className="text-gray-600">Estado</p>
           <p className={`font-bold ${colorScheme.badge.split(' ')[1]}`}>
-            {sla.status === 'completed' ? 'Listo' : sla.status}
+            {sla.level === 'completed' ? 'Listo' : sla.level}
           </p>
         </div>
       </div>

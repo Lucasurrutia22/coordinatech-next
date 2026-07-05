@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { calculateSLA } from '@/lib/slaCalculations';
+import { calculateSLAMetrics } from '@/lib/sla';
 import { getStoredJSON, setStoredJSON } from '@/lib/storage';
 import { Ticket } from '@/types/domain';
 
@@ -17,18 +17,14 @@ export function useSLAAlerts(tickets: Ticket[]) {
       tickets.forEach((ticket) => {
         if (ticket.status === 'completed' || !ticket.created_at) return;
 
-        const sla = calculateSLA(
-          new Date(ticket.created_at),
-          ticket.priority,
-          ticket.status
-        );
+        const sla = calculateSLAMetrics(ticket);
 
-        if (sla.status === 'critical' && !alertedTickets.has(ticket.id)) {
+        if ((sla.level === 'critical' || sla.level === 'overdue') && !alertedTickets.has(ticket.id)) {
           toast.error(`SLA crítico - ${ticket.id}`, {
             description: `Solo ${sla.hoursRemaining.toFixed(1)}h restantes`,
           });
           alertedTickets.add(ticket.id);
-        } else if (sla.status === 'warning' && !alertedTickets.has(`warn-${ticket.id}`)) {
+        } else if (sla.level === 'warning' && !alertedTickets.has(`warn-${ticket.id}`)) {
           toast.warning(`SLA próximo - ${ticket.id}`, {
             description: `${sla.hoursRemaining.toFixed(1)}h restantes`,
           });

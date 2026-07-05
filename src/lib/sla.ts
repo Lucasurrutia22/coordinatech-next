@@ -1,115 +1,150 @@
-import { Ticket, TicketPriority, SLA_HOURS } from "@/types/domain";
+import { SLA_CONFIG, SLALevel, Ticket, TicketType } from "@/types/domain";
 
-/**
- * Calcula la fecha de vencimiento del SLA según la prioridad y fecha de creación
- */
-export function calculateSLADeadline(
-  createdAt: string,
-  priority: TicketPriority,
-): string {
-  const hours = SLA_HOURS[priority];
+export type { SLALevel };
+
+function resolveTicketType(ticket: Pick<Ticket, "ticket_type">): TicketType {
+  return ticket.ticket_type && SLA_CONFIG[ticket.ticket_type] ? ticket.ticket_type : "support";
+}
+
+function calculateSLADeadline(createdAt: string, ticketType: TicketType): string {
+  const config = SLA_CONFIG[ticketType] ?? SLA_CONFIG.support;
   const date = new Date(createdAt);
-  date.setHours(date.getHours() + hours);
+  date.setMinutes(date.getMinutes() + config.timeWindowMinutes);
   return date.toISOString();
 }
 
-/**
- * Calcula el estado del SLA: healthy (>30% tiempo), warning (10-30%), critical (<10%)
- */
-export function calculateSLAStatus(
-  deadline: string,
-  status: Ticket["status"],
-): Ticket["sla_status"] {
-  // Si está completado o no completado, no tiene SLA activo
-  if (status === "completed" || status === "not_completed") {
-    return "healthy";
-  }
-
-  const now = new Date();
-  const deadlineDate = new Date(deadline);
-
-  // Si ya pasó la fecha límite
-  if (now > deadlineDate) {
-    return "critical";
-  }
-
-  // Calcula tiempo restante
-  const totalMs = deadlineDate.getTime() - new Date(deadline).getTime() + (now.getTime() - deadlineDate.getTime());
-  const remainingMs = deadlineDate.getTime() - now.getTime();
-  const remainingPercent = (remainingMs / totalMs) * 100;
-
-  if (remainingPercent > 30) {
-    return "healthy";
-  } else if (remainingPercent > 10) {
-    return "warning";
-  } else {
-    return "critical";
-  }
+export interface SLAMetrics {
+  level: SLALevel;
+  percentRemaining: number;
+  hoursRemaining: number;
+  timeWindowMinutes: number;
+  timeRemaining: { days: number; hours: number; minutes: number };
+  deadline: Date;
+  isOverdue: boolean;
 }
 
-/**
- * Enriquece un ticket con información de SLA
- */
+/** Calcula el estado y tiempo restante de SLA para un ticket, según su tipo (ST/INS/RT). */
+export function calculateSLAMetrics(ticket: Ticket): SLAMetrics {
+  const now = new Date();
+  const ticketType = resolveTicketType(ticket);
+  const config = SLA_CONFIG[ticketType];
+
+  if (ticket.status === "completed" || ticket.status === "not_completed") {
+    return {
+      level: "completed",
+      percentRemaining: 100,
+      hoursRemaining: 0,
+      timeWindowMinutes: config.timeWindowMinutes,
+      timeRemaining: { days: 0, hours: 0, minutes: 0 },
+      deadline: new Date(ticket.sla_deadline || now),
+      isOverdue: false,
+    };
+  }
+
+  const createdAt = new Date(ticket.created_at || now);
+  const deadline = ticket.sla_deadline
+    ? new Date(ticket.sla_deadline)
+    : new Date(createdAt.getTime() + config.timeWindowMinutes * 60_000);
+
+  const totalMs = deadline.getTime() - createdAt.getTime();
+  const remainingMs = deadline.getTime() - now.getTime();
+  const percentRemaining = totalMs > 0 ? (remainingMs / totalMs) * 100 : 0;
+
+  let level: SLALevel;
+  if (remainingMs < 0) {
+    level = "overdue";
+  } else if (percentRemaining <= config.criticalPercent) {
+    level = "critical";
+  } else if (percentRemaining <= config.warningPercent) {
+    level = "warning";
+  } else {
+    level = "ok";
+  }
+
+  const absDiffMs = Math.abs(remainingMs);
+
+  return {
+    level,
+    percentRemaining: Math.max(0, Math.round(percentRemaining)),
+    hoursRemaining: Math.max(0, remainingMs / 3_600_000),
+    timeWindowMinutes: config.timeWindowMinutes,
+    timeRemaining: {
+      days: Math.floor(absDiffMs / 86_400_000),
+      hours: Math.floor((absDiffMs / 3_600_000) % 24),
+      minutes: Math.floor((absDiffMs / 60_000) % 60),
+    },
+    deadline,
+    isOverdue: remainingMs < 0,
+  };
+}
+
+/** Enriquece un ticket con sla_deadline/sla_status persistibles. Usado por repository.ts en cada fetch/create/update. */
 export function enrichTicketWithSLA(ticket: Ticket): Ticket {
   if (!ticket.created_at) {
     return ticket;
   }
 
-  const slaDeadline =
-    ticket.sla_deadline || calculateSLADeadline(ticket.created_at, ticket.priority);
-  const slaStatus = calculateSLAStatus(slaDeadline, ticket.status);
+  const ticketType = resolveTicketType(ticket);
+  const slaDeadline = ticket.sla_deadline || calculateSLADeadline(ticket.created_at, ticketType);
+  const metrics = calculateSLAMetrics({ ...ticket, sla_deadline: slaDeadline });
 
   return {
     ...ticket,
     sla_deadline: slaDeadline,
-    sla_status: slaStatus,
+    sla_status: metrics.level,
   };
 }
 
-/**
- * Calcula el porcentaje de cumplimiento de SLA
- */
 export function calculateSLACompliance(tickets: Ticket[]): {
   total: number;
   compliant: number;
   percentage: number;
+  critical: number;
+  warning: number;
 } {
-  const completedTickets = tickets.filter(
-    (t) => t.status === "completed" || t.status === "not_completed",
-  );
+  const completed = tickets.filter((t) => t.status === "completed" || t.status === "not_completed");
 
-  if (completedTickets.length === 0) {
-    return { total: 0, compliant: 0, percentage: 100 };
+  if (completed.length === 0) {
+    return { total: 0, compliant: 0, percentage: 100, critical: 0, warning: 0 };
   }
 
-  const compliant = completedTickets.filter((t) => {
-    if (t.sla_status === "critical") {
-      return false;
-    }
-    if (!t.sla_deadline) {
-      return true;
-    }
-    return new Date() <= new Date(t.sla_deadline);
-  }).length;
+  let compliant = 0;
+  let critical = 0;
+  let warning = 0;
+
+  completed.forEach((ticket) => {
+    const { level } = calculateSLAMetrics(ticket);
+    if (level === "ok" || level === "completed") compliant += 1;
+    else if (level === "critical" || level === "overdue") critical += 1;
+    else if (level === "warning") warning += 1;
+  });
 
   return {
-    total: completedTickets.length,
+    total: completed.length,
     compliant,
-    percentage: Math.round((compliant / completedTickets.length) * 100),
+    percentage: Math.round((compliant / completed.length) * 100),
+    critical,
+    warning,
   };
 }
 
-/**
- * Agrupa tickets por estado de SLA
- */
-export function groupTicketsBySLAStatus(tickets: Ticket[]): {
-  healthy: Ticket[];
-  warning: Ticket[];
-  critical: Ticket[];
-} {
-  return {
-    healthy: tickets.filter((t) => t.sla_status === "healthy"),
-    warning: tickets.filter((t) => t.sla_status === "warning"),
-    critical: tickets.filter((t) => t.sla_status === "critical"),
-  };
+export function groupTicketsBySLAStatus(tickets: Ticket[]): Record<SLALevel, Ticket[]> {
+  const groups: Record<SLALevel, Ticket[]> = { ok: [], warning: [], critical: [], overdue: [], completed: [] };
+  tickets.forEach((ticket) => {
+    groups[calculateSLAMetrics(ticket).level].push(ticket);
+  });
+  return groups;
+}
+
+export function getCriticalTickets(tickets: Ticket[]): Ticket[] {
+  return tickets.filter((ticket) => {
+    const { level } = calculateSLAMetrics(ticket);
+    return level === "critical" || level === "overdue";
+  });
+}
+
+export function formatSLATime(days: number, hours: number, minutes: number): string {
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 }

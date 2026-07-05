@@ -39,16 +39,23 @@ export interface Ticket {
   technician_id: string;
   created_at?: string;
   sla_deadline?: string; // Fecha límite según SLA
-  sla_status?: "healthy" | "warning" | "critical"; // Estado del SLA
+  sla_status?: SLALevel; // Estado del SLA
   is_archived?: boolean; // Marcado como archivado (soft delete)
   client_name?: string; // Agregado para la tabla
 }
 
-// SLA tiempos en horas según prioridad
-export const SLA_HOURS: Record<TicketPriority, number> = {
-  high: 2,
-  medium: 8,
-  low: 24,
+// ── SLA: política única por tipo de ticket (fuente de verdad — consumida por src/lib/sla.ts) ──
+export type SLALevel = "ok" | "warning" | "critical" | "overdue" | "completed";
+
+export const SLA_CONFIG: Record<TicketType, {
+  timeWindowMinutes: number;
+  warningPercent: number;
+  criticalPercent: number;
+  label: string;
+}> = {
+  support:      { timeWindowMinutes: 2 * 60, warningPercent: 50, criticalPercent: 25, label: "Soporte Técnico" },
+  installation: { timeWindowMinutes: 5 * 60, warningPercent: 50, criticalPercent: 25, label: "Instalación" },
+  removal:      { timeWindowMinutes: 3 * 60, warningPercent: 50, criticalPercent: 25, label: "Retiro" },
 };
 
 export interface IncompleteReport {

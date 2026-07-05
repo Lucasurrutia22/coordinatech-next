@@ -1,16 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, ClipboardCheck, Clock, Edit2, MapPin, Play, RefreshCw, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Camera, CheckCircle2, ClipboardCheck, Edit2, History, MapPin, Play, RefreshCw, Upload, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PriorityPill, StatusPill } from "@/components/StatusPill";
 import { WorkTimer } from "@/components/WorkTimer";
+import { SLAIndicator } from "@/components/SLAIndicator";
 import { useAppContext } from "@/context/AppContext";
 import { Avatar } from "@/components/Avatar";
 import { TicketStatus } from "@/types/domain";
+import { getWorkTimeSummary, startWorkTimer, completeWorkTimer, type WorkTimeSummary } from "@/lib/timeTracking";
+import { captureCurrentLocation, reverseGeocode, mapsUrl } from "@/lib/geolocation";
 
 // ── Stepper ─────────────────────────────────────────────────
 function StatusStepper({ status }: { status: TicketStatus }) {
@@ -64,26 +67,81 @@ function StatusStepper({ status }: { status: TicketStatus }) {
   );
 }
 
-// ── SLA helper ───────────────────────────────────────────────
-function getSLA(scheduledDate: string, status: TicketStatus) {
-  if (status === "completed" || status === "not_completed") return null;
-  const diffMs = new Date(scheduledDate).getTime() - Date.now();
-  const overdue = diffMs < 0;
-  const totalH  = Math.abs(Math.floor(diffMs / 3_600_000));
-  const mins    = Math.abs(Math.floor((diffMs % 3_600_000) / 60_000));
-  const days    = Math.floor(totalH / 24);
-  const remH    = totalH % 24;
+// ── Historial de trabajo ──────────────────────────────────────
+const EVENT_LABELS: Record<string, string> = {
+  started: "Trabajo iniciado",
+  paused: "Trabajo pausado",
+  resumed: "Trabajo reanudado",
+  completed: "Trabajo completado",
+};
 
-  let label: string;
-  if (overdue)        label = totalH >= 24 ? `Vencido hace ${days}d ${remH}h` : `Vencido hace ${totalH}h ${mins}m`;
-  else if (totalH < 2) label = `${totalH}h ${mins}m restantes`;
-  else if (totalH < 24) label = `${totalH}h restantes`;
-  else                  label = `${days}d ${remH}h restantes`;
+function StartLocationBadge({ latitude, longitude }: { latitude: number; longitude: number }) {
+  const [label, setLabel] = useState<string | null>(null);
 
-  const color  = overdue ? "#dc2626" : totalH < 24 ? "#d97706" : "#16a34a";
-  const bg     = overdue ? "#fef2f2" : totalH < 24 ? "#fffbeb" : "#f0fdf4";
-  const border = overdue ? "#fca5a5" : totalH < 24 ? "#fcd34d" : "#86efac";
-  return { label, color, bg, border, overdue };
+  useEffect(() => {
+    let active = true;
+    reverseGeocode({ latitude, longitude }).then((result) => { if (active) setLabel(result); });
+    return () => { active = false; };
+  }, [latitude, longitude]);
+
+  return (
+    <a
+      href={mapsUrl({ latitude, longitude })}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--brand)", textDecoration: "none" }}
+    >
+      <MapPin size={11} /> {label ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`}
+    </a>
+  );
+}
+
+function WorkHistory({ ticketId }: { ticketId: string }) {
+  const [summary, setSummary] = useState<WorkTimeSummary | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getWorkTimeSummary(ticketId).then((data) => { if (active) setSummary(data); });
+    return () => { active = false; };
+  }, [ticketId]);
+
+  if (!summary || (summary.events.length === 0 && summary.breaks.length === 0)) {
+    return null;
+  }
+
+  type Entry = { at: string; label: string; detail?: string; latitude?: number; longitude?: number };
+  const entries: Entry[] = [
+    ...summary.events.map((e) => ({
+      at: e.timestamp,
+      label: EVENT_LABELS[e.event_type] ?? e.event_type,
+      latitude: e.latitude,
+      longitude: e.longitude,
+    })),
+    ...summary.breaks.map((b) => ({ at: b.break_start, label: "Pausa", detail: b.break_reason })),
+  ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  return (
+    <article className="panel">
+      <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <History size={12} /> Historial
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.6rem" }}>
+        {entries.map((entry, i) => (
+          <div key={i} style={{ display: "flex", gap: "0.65rem", fontSize: "0.82rem", alignItems: "baseline", flexWrap: "wrap" }}>
+            <span className="muted" style={{ fontSize: "0.74rem", minWidth: 105 }}>
+              {format(new Date(entry.at), "dd MMM, HH:mm", { locale: es })}
+            </span>
+            <span>{entry.label}{entry.detail ? ` — ${entry.detail}` : ""}</span>
+            {entry.latitude != null && entry.longitude != null && (
+              <span style={{ fontSize: "0.76rem" }}>
+                — <StartLocationBadge latitude={entry.latitude} longitude={entry.longitude} />
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </article>
+  );
 }
 
 export default function TicketDetailPage() {
@@ -108,7 +166,6 @@ export default function TicketDetailPage() {
 
   const tech       = technicians.find((item) => item.id === ticket.technician_id);
   const isMyTicket = user?.role === "tech" && user.id === ticket.technician_id;
-  const sla        = user?.role === "admin" ? getSLA(ticket.scheduled_date, ticket.status) : null;
   const ncReport   = incompleteReports.find((r) => r.ticket_id === ticket.id);
 
   // ── Handlers (con ticket ya garantizado no-null) ────────
@@ -151,11 +208,15 @@ export default function TicketDetailPage() {
       }
 
       // 2. Actualizar el ticket a "not_completed" y limpiar técnico
-      await editTicket(ticket.id, { 
+      await editTicket(ticket.id, {
         status: "not_completed",
         technician_id: "" // Limpiar para reasignación
       });
-      
+
+      // 2.4. Cerrar cronómetro (cierra pausas abiertas y registra el evento
+      // "completed" para el historial de auditoría, aunque no se haya completado).
+      await completeWorkTimer(ticket.id, user!.id, ncReason.trim(), "not_completed");
+
       // 2.5. Esperar a que refreshData() sincronice completamente
       await refreshData();
 
@@ -173,10 +234,24 @@ export default function TicketDetailPage() {
     }
   };
 
-  const handleStartWork = () => editTicket(ticket.id, { status: "in_progress" });
-  const handleAccept    = () => editTicket(ticket.id, { status: "in_progress" });
-  const handleReject    = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
-  const handleReassign  = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
+  // Nota de orden: editTicket (API validada) siempre va primero. startWorkTimer
+  // también escribe status "in_progress" directo a Supabase (para persistir
+  // work_started_at + el evento con ubicación), pero como valor ya vigente no
+  // pasa por el validador de transición — llamarlo antes rompería ese guard.
+  const handleStartWork = async () => {
+    await editTicket(ticket.id, { status: "in_progress" });
+    if (ticket.technician_id) {
+      const location = await captureCurrentLocation();
+      await startWorkTimer(ticket.id, ticket.technician_id, location);
+    }
+  };
+  const handleAccept = async () => {
+    await editTicket(ticket.id, { status: "in_progress" });
+    const location = await captureCurrentLocation();
+    await startWorkTimer(ticket.id, user!.id, location);
+  };
+  const handleReject   = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
+  const handleReassign = () => editTicket(ticket.id, { status: "pending", technician_id: "" });
 
   return (
     <div className="stack-lg">
@@ -205,17 +280,7 @@ export default function TicketDetailPage() {
             <div className="row-gap" style={{ flexWrap: "wrap" }}>
               <StatusPill status={ticket.status} />
               <PriorityPill priority={ticket.priority} />
-              {sla && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  padding: "0.22rem 0.65rem", borderRadius: "var(--r-sm)",
-                  background: sla.bg, color: sla.color,
-                  border: `1px solid ${sla.border}`,
-                  fontSize: "0.74rem", fontWeight: 600,
-                }}>
-                  <Clock size={11} /> SLA: {sla.label}
-                </span>
-              )}
+              <SLAIndicator ticket={ticket} compact />
             </div>
           </div>
 
@@ -325,7 +390,7 @@ export default function TicketDetailPage() {
           >
             <WorkTimer
               ticketId={ticket.id}
-              technicianId={tech?.id || user?.id || ""}
+              technicianId={tech?.id ?? ""}
               userRole={user?.role as 'admin' | 'technician' | 'user'}
               compact={true}
               onWorkStarted={() => console.log("Trabajo iniciado")}
@@ -437,6 +502,8 @@ export default function TicketDetailPage() {
           </button>
         </ActionPanel>
       )}
+
+      <WorkHistory ticketId={ticket.id} />
 
       {/* ══ MODAL: REGISTRAR NO COMPLETADO ═══════════════════════ */}
       {showNCModal && (

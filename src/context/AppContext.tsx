@@ -213,28 +213,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTickets((prev) => prev.map((item) => (item.id === id ? { ...item, ...payload } : item)));
       
       try {
-        // Primero intenta via API con validación server-side (si está disponible)
+        // Primero intenta via API con validación server-side (si está disponible).
+        // Solo se cae al fallback directo (sin validación) cuando la ruta es
+        // inalcanzable (red/servidor caído) — NUNCA cuando la API respondió pero
+        // rechazó la transición, o el guard de estados quedaría decorativo.
+        let apiUnreachable = false;
+        let response: Response | undefined;
         try {
-          const response = await fetch(`/api/tickets/${id}`, {
+          response = await fetch(`/api/tickets/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
+        } catch (networkError) {
+          apiUnreachable = true;
+          console.warn("API route inalcanzable, usando fallback local:", networkError);
+        }
 
+        if (!apiUnreachable && response) {
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error || `API error: ${response.status}`);
           }
-
-          // Si la API devuelve éxito, sincronizar datos y retornar
           await refreshData();
           return;
-        } catch (apiError) {
-          console.warn("API route no disponible, usando fallback:", apiError);
-          // Fallback a la función original si API no está disponible
         }
 
-        // Fallback: usar updateTicket directamente
+        // Fallback: usar updateTicket directamente (solo si la API era inalcanzable)
         // updateTicket garantiza que el almacenamiento local se actualiza siempre.
         await updateTicket(id, payload);
         await refreshData();
