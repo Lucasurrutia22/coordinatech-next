@@ -43,7 +43,13 @@ export async function getTechnicians(): Promise<Technician[]> {
 
       clearTimeout(timeoutId);
 
-      if (!error && data && data.length > 0) {
+      // Supabase respondió correctamente — es la fuente de verdad, incluso si
+      // devuelve 0 filas (technicians recién configurado y aún sin datos).
+      // Antes se exigía data.length > 0, así que una tabla vacía caía al
+      // fallback de demoData ("TECH-001"... etc.), mostrando técnicos que no
+      // existen en Supabase — cualquier ticket asignado a esos IDs fantasma
+      // violaba la FK de tickets.technician_id al guardarse.
+      if (!error && data) {
         await saveLocal(TECHS_KEY, data);
         return data as Technician[];
       }
@@ -53,6 +59,7 @@ export async function getTechnicians(): Promise<Technician[]> {
   }
 
   // Fallback: combina almacenamiento local con demoData
+  // (solo cuando Supabase no está configurado o es inalcanzable)
   return await loadLocal<Technician[]>(TECHS_KEY, demoTechnicians);
 }
 

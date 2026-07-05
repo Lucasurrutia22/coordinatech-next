@@ -1,7 +1,11 @@
--- ⚠️ NOTA: En producción, usar contraseñas hasheadas y configuradas de forma segura
--- insert into public.technicians (id, name, email, phone, password, active)
--- values
---   ('TECH-001', 'Juan Perez', 'juan.perez@company.com', '+56 9 1111 1111', '[PASSWORD_HASH]', true),
+-- ⚠️ NOTA: En producción, usar contraseñas hasheadas y configuradas de forma segura.
+-- Esta sentencia estaba rota (el INSERT quedó comentado y solo sobrevivía una
+-- fila suelta), por lo que nunca insertó nada — la tabla technicians pudo
+-- haber quedado vacía en Supabase mientras la app mostraba técnicos de
+-- demoData.ts (locales, no reales) en el desplegable.
+insert into public.technicians (id, name, email, phone, password, active)
+values
+  ('TECH-001', 'Juan Perez', 'juan.perez@company.com', '+56 9 1111 1111', 'tech123', true),
   ('TECH-002', 'Ana Gonzalez', 'ana.gonzalez@company.com', '+56 9 2222 2222', 'tech123', true)
 on conflict (id) do update
 set
