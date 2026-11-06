@@ -17,6 +17,13 @@ Primary business modules:
 - SLA dashboards (admin and technician views)
 - Photo + optional GPS evidence for field work
 
+## Proyecto de Título — fuente de verdad
+
+- `docs/proyecto-titulo/ESPECIFICACION.md`: summary of the Informe Final (thesis report). Use it for SLA, KPI, the data model (Anexo A) and the test cases CP-01..CP-07.
+- `docs/proyecto-titulo/BRECHAS.md`: gaps between the report and the code (B-01..B-16). Reference the gap ID in commits that close one.
+- The report lists Admin, Supervisor and Technician roles, multi-tenant RLS by `organizacion_id`, Supabase Auth/JWT, and SHA-256 append-only evidence. Do not add features that contradict these.
+- Checks: `npm run typecheck`, `npm test` (Jest, `src/**/*.test.ts`), `npm run build`. CI runs all of them in `.github/workflows/ci.yml`.
+
 ## Core Architecture Rules
 
 1. Respect layering and boundaries.

@@ -1,0 +1,25 @@
+# Pipeline CI — Informe Final, cap. V: unitarias/regresión en cada cambio propuesto;
+# el despliegue (Vercel) solo debe autorizarse con este pipeline en verde.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --ci
+      - run: npm run build
+      # Lint tiene errores previos (BRECHAS.md B-14); se reporta sin bloquear hasta corregirlos.
+      - run: npm run lint
+        continue-on-error: true
